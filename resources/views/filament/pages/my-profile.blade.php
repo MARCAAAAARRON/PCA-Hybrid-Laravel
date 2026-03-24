@@ -1,0 +1,82 @@
+<x-filament-panels::page>
+    <div class="flex flex-col md:flex-row gap-6 items-start">
+        <!-- Profile Info Card (Left) -->
+        <div class="w-full md:w-1/3 lg:w-1/4 sticky top-6">
+            <x-filament::section class="text-center">
+                <div class="flex flex-col items-center py-6">
+                    <div class="relative mb-4">
+                        @if(auth()->user()->avatar_url)
+                            <img src="{{ Storage::url(auth()->user()->avatar_url) }}" alt="Avatar" class="w-24 h-24 rounded-full object-cover border-4 border-primary-50">
+                        @else
+                            <div class="w-24 h-24 rounded-full bg-primary-100 flex items-center justify-center border-4 border-primary-50">
+                                <x-heroicon-s-user class="w-12 h-12 text-primary-600" />
+                            </div>
+                        @endif
+                    </div>
+                    
+                    <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-1">
+                        {{ auth()->user()->name ?: auth()->user()->email }}
+                    </h2>
+                    
+                    <x-filament::badge color="success" class="mb-4">
+                        {{ auth()->user()->role_display }}
+                    </x-filament::badge>
+                    
+                    <div class="w-full space-y-3 text-sm text-gray-600 dark:text-gray-400">
+                        <div class="flex items-center justify-center gap-2">
+                            <x-heroicon-m-envelope class="w-4 h-4" />
+                            <span class="truncate max-w-[150px]">{{ auth()->user()->email ?: 'No email set' }}</span>
+                        </div>
+                        
+                        @if(auth()->user()->fieldSite)
+                            <div class="flex items-center justify-center gap-2">
+                                <x-heroicon-m-map-pin class="w-4 h-4" />
+                                <span>{{ auth()->user()->fieldSite->name }}</span>
+                            </div>
+                        @endif
+
+                        @if(auth()->user()->signature_image)
+                            <div class="mt-4 pt-4 border-t border-gray-100 dark:border-gray-800">
+                                <p class="text-xs uppercase tracking-wider text-gray-500 mb-2">Digital Signature</p>
+                                <img src="{{ Storage::url(auth()->user()->signature_image) }}" alt="Signature" class="max-h-12 mx-auto object-contain bg-white rounded p-1 shadow-sm border border-gray-100">
+                            </div>
+                        @endif
+                    </div>
+
+                    <div class="w-full mt-6 pt-6 border-t border-gray-100 dark:border-gray-800 text-xs text-gray-500 space-y-2">
+                        <div class="flex justify-between px-2">
+                            <span class="font-semibold">Joined:</span>
+                            <span>{{ auth()->user()->created_at->format('M j, Y') }}</span>
+                        </div>
+                        <div class="flex justify-between px-2">
+                            <span class="font-semibold">Last Login:</span>
+                            <span>{{ now()->format('M j, Y g:i A') }}</span>
+                        </div>
+                    </div>
+                </div>
+            </x-filament::section>
+        </div>
+
+        <!-- Edit Profile Card (Right) -->
+        <div class="w-full md:w-2/3 lg:w-3/4">
+            <x-filament::section>
+                <x-slot name="heading">
+                    <div class="flex items-center gap-2">
+                        <x-heroicon-m-pencil-square class="w-5 h-5 text-primary-600" />
+                        <span>Edit Profile</span>
+                    </div>
+                </x-slot>
+
+                <form wire:submit="submit" class="space-y-6">
+                    {{ $this->form }}
+
+                    <div class="flex justify-end">
+                        <x-filament::button type="submit" icon="heroicon-m-check" color="success">
+                            Save Changes
+                        </x-filament::button>
+                    </div>
+                </form>
+            </x-filament::section>
+        </div>
+    </div>
+</x-filament-panels::page>
