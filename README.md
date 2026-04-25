@@ -1,260 +1,116 @@
-# 🚀 Kaido Kit FilamentPhp Starter Code
-
-A powerful and opinionated FilamentPHP starter kit designed to accelerate your admin panel development. Kaido Kit provides a robust foundation with pre-configured plugins, configuration and best practices for building feature-rich admin interfaces.
-
-![GitHub stars](https://img.shields.io/github/stars/siubie/kaido-kit?style=flat-square)
-![GitHub forks](https://img.shields.io/github/forks/siubie/kaido-kit?style=flat-square)
-![GitHub issues](https://img.shields.io/github/issues/siubie/kaido-kit?style=flat-square)
-![License](https://img.shields.io/badge/License-MIT-blue?style=flat-square)
-![PHP Version](https://img.shields.io/badge/PHP-8.2-blue?style=flat-square&logo=php)
-![Laravel Version](https://img.shields.io/badge/Laravel-11.0-red?style=flat-square&logo=laravel)
-![Filament Version](https://img.shields.io/badge/Filament-3.2-purple?style=flat-square)
-## Introduction Video
-[![Build FilamentPhp Apps 10x Faster | Kaido-Kit Starter Kit (Complete Demo)](https://img.youtube.com/vi/t6q1zBqaBGU/maxresdefault.jpg)](http://www.youtube.com/watch?v=t6q1zBqaBGU "Build FilamentPhp Apps 10x Faster | Kaido-Kit Starter Kit (Complete Demo)")
-## ✨ Features
-
-### 🛠️ Developer Experience
-
-- ⚡ Quick CRUD generation with customized [FilamentPHP](https://filamentphp.com/) stubs
-    - Optimized UX out of the box
-    - No need to modify generated resources
-- 🔄 Auto reload on save for rapid development
-- 📚 Easy API documentation using [Scramble](https://scramble.dedoc.co/)
-- 📤 Built-in Export and Import examples in Filament resources
-
-### 🔐 Authentication & Authorization
-
-- 🛡️ Role-Based Access Control (RBAC) using [Filament Shield](https://filamentphp.com/plugins/bezhansalleh-shield)
-- 🔑 Enhanced login page with custom design
-- 🌐 Social login with Google via [Filament Socialite](https://filamentphp.com/plugins/dododedodonl-socialite)
-- 👤 User profile management with [Filament Breezy](https://filamentphp.com/plugins/jeffgreco-breezy)
-- 🔒 Instant 2-Factor Authentication capabilities
-- 👥 Simple user-to-role assignment
-- 🎭 User impersonation via [Filament Impersonate](https://filamentphp.com/plugins/joseph-szobody-impersonate)
-
-### 📡 API & Integration
-
-- 🚀 Full API support with [Filament API Service](https://filamentphp.com/plugins/rupadana-api-service)
-    - Seamlessly integrated with Shield
-    - Ready-to-use API endpoints
-- 📨 Email integration using [Resend](https://resend.com/)
-- 📝 Auto-generated API documentation
-
-### 📁 Media & Content Management
-
-- 🖼️ Integrated [Filament Media Library](https://filamentphp.com/plugins/filament-spatie-media-library)
-    - Easy media handling process
-    - [Spatie Media Library](https://spatie.be/docs/laravel-medialibrary) support
-
-### ⚙️ Configuration & Settings
-
-- 🎛️ Dynamic plugin management via [Filament Settings](https://filamentphp.com/plugins/filament-spatie-settings)
-    - Enable/disable features on the fly
-    - [Spatie Laravel Settings](https://github.com/spatie/laravel-settings) integration
-
-## 🚀 Quick Start
-
-1. Create new project using composer
-
-    ```php
-    composer create-project siubie/kaido-kit
-    ```
-
-2. Composer install
-
-    ```php
-    composer install
-    ```
-
-3. Npm Install
-
-    ```php
-    npm install
-    ```
-
-4. Copy .env
-
-    ```php
-    cp .env.example .env
-    ```
-
-5. Configure your database in .env
-
-    ```php
-    DB_CONNECTION=mysql
-    DB_HOST=127.0.0.1
-    DB_PORT=3306
-    DB_DATABASE=kaido_kit
-    DB_USERNAME=root
-    DB_PASSWORD=
-    ```
-
-6. Configure your google sign in cliend id and secret (optional)
-
-    ```php
-    #google auth
-    GOOGLE_CLIENT_ID=
-    GOOGLE_CLIENT_SECRET=
-    GOOGLE_REDIRECT_URI=http://localhost:8000/admin/oauth/callback/google
-    ```
-
-7. Configure your resend for email sending (optional)
-
-    ```php
-    #resend
-    MAIL_MAILER=resend
-    MAIL_HOST=127.0.0.1
-    MAIL_PORT=2525
-    MAIL_USERNAME=null
-    MAIL_PASSWORD=null
-    MAIL_ENCRYPTION=null
-    RESEND_API_KEY=
-    MAIL_FROM_ADDRESS="admin@domain.com"
-    MAIL_FROM_NAME="${APP_NAME}"
-    ```
-
-8. Migrate your database
-
-    ```php
-    php artisan migrate --seed
-    ```
-
-9. Serve the Application
-
-    ```script
-    composer run dev
-    ```
-
-11. If run successfully you will get this login interface
-
-    ![image.png](.github/images/login-screen.png)
-
-12. When signed in it will show this (not much yet but it getting there :) )
-
-    ![image.png](.github/images/after-login-without-rbac.png)
-
-13. Next step is to setup the RBAC, first generate the role and permission
-
-    ```php
-    php artisan shield:generate --all
-    ```
-
-14. It will ask which panel do you want to generate permission/policies for choose the admin panel.
-15. Setup the super admin using this command
-
-    ```php
-    php artisan shield:super-admin
-    ```
-
-    ![image.png](.github/images/provide-superadmin.png)
-
-16. Choose your super admin user and login again.
-
-    ![image.png](.github/images/after-login-rbac.png)
-
-## Running on Docker with Laravel Sail
-
-1. Clone the repository
-
-```bash
-git clone https://github.com/siubie/kaido-kit.git
-```
-
-2. Copy .env.example to .env
-
-```bash
-cp .env.example .env
-```
-
-3. Install dependencies
-
-```bash
-composer install
-```
-
-4. Install Laravel Sail
-
-```bash
-composer require laravel/sail --dev
-php artisan sail:install
-```
-
-5. Run Sail
-
-```bash
-./vendor/bin/sail up -d
-```
-
-6. Generate App Key
-
-```bash
-./vendor/bin/sail artisan key:generate
-```
-
-7. Run migration
-
-```bash
-./vendor/bin/sail artisan migrate --seed
-```
-
-8. Next step is to setup the RBAC, first generate the role and permission
-
-```bash
-./vendor/bin/sail artisan shield:generate --all
-```
-
-9. Setup the super admin using this command
-
-```bash
-./vendor/bin/sail artisan shield:super-admin
-```
-
-10. Serve the Application
-
-```bash
-./vendor/bin/sail composer run dev
-```
-
-## Security
-Set your app Debug to false in .env file
-```php
-APP_NAME="Kaido-Kit"
-APP_ENV=local
-APP_KEY=base64:gWUd7RPrCZm6iu7qFddY3039BQLroNHJ0nqKcBr8eeA=
-APP_DEBUG=false
-APP_TIMEZONE=UTC
-APP_URL=https://localhost:8000
-```
+# 🌴 PCA Hybridization Portal System
+
+[![PHP Version](https://img.shields.io/badge/PHP-8.2%2B-777BB4?style=flat-square&logo=php)](https://www.php.net/)
+[![Laravel Version](https://img.shields.io/badge/Laravel-11.x-FF2D20?style=flat-square&logo=laravel)](https://laravel.com/)
+[![Filament Version](https://img.shields.io/badge/Filament-3.2-D97706?style=flat-square&logo=filament)](https://filamentphp.com/)
+[![License](https://img.shields.io/badge/License-MIT-blue?style=flat-square)](LICENSE)
+
+The **PCA Hybridization Portal System** is a secure, enterprise-grade web application designed for the **Philippine Coconut Authority (PCA)**. It streamlines and centralizes the management of coconut hybridization activities across multiple field sites (Loay and Balilihan Farms), ensuring data integrity, traceability, and professional reporting.
+
+Originally conceptualized as a Django-based system, this modern implementation leverages the **Laravel 11** ecosystem and **Filament v3** for a high-performance, real-time administrative experience.
+
+---
+
+## ✨ Key Features
+
+### 🚜 Field Data Modules
+- **Hybrid Seedling Distribution**: Tracks the distribution of seedlings to farmers with detailed location and variety data.
+- **Monthly Seednut Harvest**: Manages on-farm hybrid seednut production with automated carry-forward logic.
+- **Nursery Operations**: Full lifecycle tracking of communal nurseries, from sowing to dispatch.
+- **Pollen Production & Inventory**: Monitors pollen collection, receipt, and weekly utilization across centers.
+- **Terminal Reports**: Specialized end-of-cycle reporting for nursery activities.
+
+### 🔐 Advanced Security & RBAC
+- **Role-Based Access Control (RBAC)**: Distinct permissions for **Supervisors** (Field entry), **Admins** (Validation), and **Super Admins** (System Governance).
+- **Field-Based Data Isolation**: Supervisors only see data related to their assigned farm (Loay or Balilihan).
+- **Audit Logging**: Comprehensive tracking of every action (Create, Update, Delete, Export) for full accountability.
+- **Submission Workflow**: Multi-stage validation for hybridization records (Draft → Submitted → Validated).
+
+### 📊 Reporting & Analytics
+- **Branded Excel Exports**: Generate official PCA-formatted `.xlsx` reports with logos, headers, and signature footers.
+- **PDF Report Generation**: Professional landscape reports for field activities and consolidated audits.
+- **Interactive Dashboards**: Real-time stats, trend charts, and activity feeds tailored to each user role.
+
+---
+
+## 🛠️ Tech Stack
+
+- **Framework**: [Laravel 11](https://laravel.com/)
+- **Admin Panel**: [Filament v3](https://filamentphp.com/)
+- **Database**: SQLite (Development) / PostgreSQL (Production)
+- **Styling**: Tailwind CSS
+- **Reporting**: [Spatie Media Library](https://spatie.be/docs/laravel-medialibrary), [OpenPyXL](https://openpyxl.readthedocs.io/) (via Laravel Excel)
+- **Base Starter**: [Kaido Kit](https://github.com/siubie/kaido-kit)
+
+---
+
+## 🚀 Installation & Setup
+
+### Prerequisites
+- PHP 8.2 or higher
+- Composer
+- Node.js & NPM
+- SQLite/MySQL/PostgreSQL
+
+### Step-by-Step Setup
+
+1. **Clone the Repository**
+   ```bash
+   git clone https://github.com/MARCAAAAARRON/PCA-Hybrid-Laravel.git
+   cd PCA-Hybrid-Laravel
+   ```
+
+2. **Install Dependencies**
+   ```bash
+   composer install
+   npm install && npm run build
+   ```
+
+3. **Environment Configuration**
+   ```bash
+   cp .env.example .env
+   php artisan key:generate
+   ```
+   *Note: Update `DB_CONNECTION` and other credentials in your `.env` file.*
+
+4. **Database Migration & Seeding**
+   ```bash
+   php artisan migrate --seed
+   ```
+
+5. **Setup Permissions (Shield)**
+   ```bash
+   php artisan shield:generate --all
+   php artisan shield:super-admin
+   ```
+
+6. **Serve the Application**
+   ```bash
+   php artisan serve
+   ```
+
+---
+
+## 📸 Screenshots
+
+*(Add your screenshots here to showcase the beautiful Filament UI)*
+- **Dashboard**: High-level overview with efficiency stats.
+- **Data Entry**: Clean, responsive forms with batch entry support.
+- **Reports**: Examples of the PCA-branded Excel/PDF outputs.
+
+---
 
 ## 🤝 Contributing
 
-We welcome contributions! Please follow these steps:
+This project was developed by **Marc Arron** as part of an undergraduate thesis/capstone project. For inquiries or contributions, please contact the repository owner.
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+---
 
 ## 🙏 Acknowledgments
 
-- [FilamentPHP](https://filamentphp.com/)
-- [Laravel](https://laravel.com/)
-- All our amazing contributors
+- **Philippine Coconut Authority (PCA)** for providing the domain expertise and requirements.
+- **Kaido Kit** for the robust FilamentPHP starter foundation.
+- **The Laravel & Filament Communities** for the amazing tools.
 
-## 💬 Support
-
-- 🐛 [Report a bug](https://github.com/siubie/kaido-kit/issues)
-- 💡 [Request a feature](https://github.com/siubie/kaido-kit/issues)
-- 📧 [Email support](mailto:putraprima@gmail.com)
-- 💬 [Discord community](https://discord.com/invite/RwqXDUJGPg)
-- 💬 [Whatsapp community](https://chat.whatsapp.com/HJtRp9Eo5wl6NhYIJbkuZL)
-
-## ⭐ Show your support
-For Indonesian community you can get support and the recording course for how to create this kit here :
-https://www.dosenngoding.com/courses/8
-
-Give a ⭐️ if this project helped you!
-## Star History
-
-[![Star History Chart](https://api.star-history.com/svg?repos=siubie/kaido-kit&type=Date)](https://star-history.com/#siubie/kaido-kit&Date)
+---
+⭐ *Give a star if this project helped you!*
