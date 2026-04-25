@@ -34,12 +34,20 @@ class DigitalSignature extends MyProfileComponent
                 Forms\Components\FileUpload::make('signature_image')
                     ->label('Digital Signature')
                     ->image()
-                    ->disk('public')
+                    ->disk('cloudinary')
                     ->directory('signatures')
                     ->acceptedFileTypes(['image/png', 'image/jpeg'])
                     ->maxSize(2048) // 2MB
                     ->imagePreviewHeight('80')
-                    ->helperText('Upload a clear image of your signature (PNG with transparent background recommended).')
+                    ->imageEditor()
+                    ->imageEditorAspectRatios([
+                        null,
+                        '16:9',
+                        '4:3',
+                        '1:1',
+                    ])
+                    ->extraInputAttributes(['capture' => 'environment'])
+                    ->helperText('Snap/Upload your signature. IMPORTANT: Click the PENCIL icon on the image to CROP it before saving.')
                     ->columnSpanFull(),
             ])
             ->statePath('data');

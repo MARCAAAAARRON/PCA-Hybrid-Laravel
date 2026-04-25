@@ -53,5 +53,18 @@
                 </div>
             @endforelse
         </div>
+
+        <div class="mt-4 text-center">
+            <x-filament::button
+                tag="a"
+                href="{{ \App\Filament\Pages\ActivityFeed::getUrl() }}"
+                color="gray"
+                size="sm"
+                outlined
+                class="w-full justify-center"
+            >
+                View All Activity
+            </x-filament::button>
+        </div>
     </x-filament::section>
 </x-filament-widgets::widget>

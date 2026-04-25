@@ -9,4 +9,11 @@ class ListPollenProductions extends ListRecords
     {
         return [\Filament\Actions\CreateAction::make()];
     }
+
+    protected function getHeaderWidgets(): array
+    {
+        return [
+            // PollenProductionResource\Widgets\PollenStockWidget::class,
+        ];
+    }
 }

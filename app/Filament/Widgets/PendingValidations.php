@@ -34,7 +34,7 @@ class PendingValidations extends BaseWidget
                 Tables\Columns\TextColumn::make('crop_type')
                     ->label('CROP TYPE')
                     ->badge(),
-                Tables\Columns\TextColumn::make('fieldSite.site_name')
+                Tables\Columns\TextColumn::make('fieldSite.name')
                     ->label('FIELD SITE')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('createdBy.name')

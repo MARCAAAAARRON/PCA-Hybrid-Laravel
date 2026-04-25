@@ -16,35 +16,65 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 class HybridDistributionExport
 {
     protected array $records;
-    protected $site;
-    protected Carbon $asOfDate;
 
     public function __construct(iterable $records)
     {
         $this->records = is_array($records) ? $records : $records->all();
-        $this->site = count($this->records) > 0 ? $this->records[0]->fieldSite : null;
-        $this->asOfDate = now();
     }
 
     public function export()
     {
         $spreadsheet = new Spreadsheet();
-        $sheet = $spreadsheet->getActiveSheet();
-        $sheet->setTitle('Hybrid Distribution');
+        $spreadsheet->removeSheetByIndex(0);
 
-        $this->setupPage($sheet);
-        $this->drawHeader($sheet);
-        $this->drawTableHeaders($sheet);
-        $currentRow = $this->drawData($sheet);
-        $this->drawFooter($sheet, $currentRow + 2);
+        // Group records by FieldSite
+        $sites = [];
+        foreach ($this->records as $rec) {
+            $siteName = $rec->fieldSite?->name ?? 'Unknown Site';
+            $siteId = $rec->field_site_id ?? 0;
+            if (!isset($sites[$siteId])) {
+                $sites[$siteId] = [
+                    'name' => $siteName,
+                    'site' => $rec->fieldSite,
+                    'records' => [],
+                ];
+            }
+            $sites[$siteId]['records'][] = $rec;
+        }
+
+        if (empty($sites)) {
+            $sheet = $spreadsheet->createSheet();
+            $sheet->setTitle('No Data');
+            $sheet->setCellValue('A1', 'No records found.');
+        } else {
+            foreach ($sites as $siteId => $siteData) {
+                $sheet = $spreadsheet->createSheet();
+                $sheet->setTitle(substr($siteData['name'], 0, 31));
+                $this->buildSheet($sheet, $siteData['records'], $siteData['site']);
+            }
+        }
 
         $writer = new Xlsx($spreadsheet);
-        
-        $fileName = 'Hybrid_Distribution_' . str_replace(' ', '_', $this->site?->name ?? 'Export') . '_' . now()->format('Y-m-d') . '.xlsx';
+        $fileName = 'Hybrid_Distribution_' . now()->format('Y-m-d') . '.xlsx';
         $tempFile = tempnam(sys_get_temp_dir(), 'export_dist');
         $writer->save($tempFile);
 
         return response()->download($tempFile, $fileName)->deleteFileAfterSend(true);
+    }
+
+    protected function buildSheet(Worksheet $sheet, array $records, $site)
+    {
+        $asOfDate = count($records) > 0 && $records[0]->report_month
+            ? Carbon::parse($records[0]->report_month)
+            : now();
+
+        $siteName = $site?->name ?? 'Unknown Site';
+
+        $this->setupPage($sheet);
+        $this->drawHeader($sheet, $asOfDate);
+        $this->drawTableHeaders($sheet);
+        $currentRow = $this->drawData($sheet, $records, $siteName);
+        $this->drawFooter($sheet, $currentRow + 2, $site, $records);
     }
 
     protected function setupPage(Worksheet $sheet)
@@ -55,9 +85,8 @@ class HybridDistributionExport
         $sheet->getPageSetup()->setFitToHeight(0);
     }
 
-    protected function drawHeader(Worksheet $sheet)
+    protected function drawHeader(Worksheet $sheet, Carbon $asOfDate)
     {
-        // Logo
         $logoPath = public_path('images/PCA_DA_Logo.png');
         if (file_exists($logoPath)) {
             $drawing = new Drawing();
@@ -85,7 +114,7 @@ class HybridDistributionExport
         $sheet->getStyle('A3')->getFont()->setSize(10);
         $sheet->getStyle('A3')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
-        $asOfStr = 'as of ' . $this->asOfDate->format('F d, Y');
+        $asOfStr = 'as of ' . $asOfDate->endOfMonth()->format('F d, Y');
         $sheet->mergeCells("A4:{$mergeEnd}4");
         $sheet->setCellValue('A4', $asOfStr);
         $sheet->getStyle('A4')->getFont()->setSize(10)->setUnderline(true);
@@ -104,105 +133,54 @@ class HybridDistributionExport
 
     protected function drawTableHeaders(Worksheet $sheet)
     {
-        // Main Headers Row 8
-        $headers8 = [
-            'A8' => 'Region',
-            'B8' => 'Province',
-            'C8' => 'District',
-            'D8' => 'Municipality',
-            'E8' => 'Barangay',
-            'F8' => 'Name of Farmer Participant',
-            'I8' => 'Gender',
-            'K8' => 'Farm Location',
-            'N8' => 'Seedlings Received',
-            'O8' => 'Date Received',
-            'P8' => 'Type/Variety',
-            'Q8' => 'No. of Seedlings Planted',
-            'R8' => 'Date Planted',
-            'S8' => 'REMARKS',
+        $mainHeaders = [
+            'A8' => 'Region', 'B8' => 'Province', 'C8' => 'District', 'D8' => 'Municipality',
+            'E8' => 'Barangay', 'F8' => 'Name of Farmer Participant', 'I8' => 'Gender',
+            'K8' => 'Farm Location', 'N8' => 'Seedlings Received',
+            'O8' => 'Date Received', 'P8' => 'Type/Variety',
+            'Q8' => 'No. of Seedlings Planted', 'R8' => 'Date Planted', 'S8' => 'REMARKS',
         ];
+        $subHeaders9 = ['F9' => 'Family Name', 'G9' => 'Given Name', 'H9' => 'M.I.'];
+        $subHeaders10 = ['I10' => 'Male', 'J10' => 'Female', 'K10' => 'Barangay', 'L10' => 'Municipality', 'M10' => 'Province'];
 
-        foreach ($headers8 as $cell => $val) {
+        foreach ($mainHeaders as $cell => $val) {
+            $sheet->setCellValue($cell, $val);
+        }
+        foreach ($subHeaders9 as $cell => $val) {
+            $sheet->setCellValue($cell, $val);
+        }
+        foreach ($subHeaders10 as $cell => $val) {
             $sheet->setCellValue($cell, $val);
         }
 
-        // Subheaders Row 9 (Family Name, Given Name, M.I.)
-        $sheet->setCellValue('F9', 'Family Name');
-        $sheet->setCellValue('G9', 'Given Name');
-        $sheet->setCellValue('H9', 'M.I.');
-
-        // Subheaders Row 10 (Gender and Farm Location detailed)
-        $sheet->setCellValue('I10', 'Male');
-        $sheet->setCellValue('J10', 'Female');
-        $sheet->setCellValue('K10', 'Barangay');
-        $sheet->setCellValue('L10', 'Municipality');
-        $sheet->setCellValue('M10', 'Province');
-
-        // Styling
         $styleArray = [
-            'font' => [
-                'bold' => true,
-                'color' => ['rgb' => 'FFFFFF'],
-            ],
-            'alignment' => [
-                'horizontal' => Alignment::HORIZONTAL_CENTER,
-                'vertical' => Alignment::VERTICAL_CENTER,
-                'wrapText' => true,
-            ],
-            'fill' => [
-                'fillType' => Fill::FILL_SOLID,
-                'startColor' => ['rgb' => '0B9E4F'],
-            ],
-            'borders' => [
-                'allBorders' => [
-                    'borderStyle' => Border::BORDER_THIN,
-                ],
-            ],
+            'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER, 'wrapText' => true],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '0B9E4F']],
+            'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
         ];
 
         $sheet->getStyle('A8:S10')->applyFromArray($styleArray);
-        
-        // Merging main headers
-        $sheet->mergeCells('A8:A10');
-        $sheet->mergeCells('B8:B10');
-        $sheet->mergeCells('C8:C10');
-        $sheet->mergeCells('D8:D10');
-        $sheet->mergeCells('E8:E10');
-        $sheet->mergeCells('F8:H8');
-        $sheet->mergeCells('F9:F10');
-        $sheet->mergeCells('G9:G10');
-        $sheet->mergeCells('H9:H10');
-        $sheet->mergeCells('I8:J8');
-        $sheet->mergeCells('I9:I9'); // Male placeholder merge? Actually let's just make it better
-        $sheet->mergeCells('I9:J9');
-        $sheet->mergeCells('K8:M8');
-        $sheet->mergeCells('K9:M9');
-        $sheet->mergeCells('N8:N10');
-        $sheet->mergeCells('O8:O10');
-        $sheet->mergeCells('P8:P10');
-        $sheet->mergeCells('Q8:Q10');
-        $sheet->mergeCells('R8:R10');
-        $sheet->mergeCells('S8:S10');
+    }
 
-        // BOHOL PROVINCE separator
+    protected function drawData(Worksheet $sheet, array $records, string $siteName)
+    {
+        // Province & Site labels
         $sheet->mergeCells('A11:S11');
         $sheet->setCellValue('A11', 'BOHOL PROVINCE');
-        $sheet->getStyle('A11')->getFont()->setBold(true);
+        $sheet->getStyle('A11')->getFont()->setBold(true)->setSize(11);
         $sheet->getStyle('A11')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
         $sheet->mergeCells('A12:S12');
-        $sheet->setCellValue('A12', 'COMMUNAL NURSERY AT ' . strtoupper($this->site?->name ?? 'ALL SITES'));
-        $sheet->getStyle('A12')->getFont()->setBold(true);
+        $sheet->setCellValue('A12', "COMMUNAL NURSERY AT {$siteName}");
+        $sheet->getStyle('A12')->getFont()->setBold(true)->setSize(11);
         $sheet->getStyle('A12')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-    }
 
-    protected function drawData(Worksheet $sheet)
-    {
         $row = 13;
         $totalPlanted = 0;
         $totalReceived = 0;
 
-        foreach ($this->records as $rec) {
+        foreach ($records as $rec) {
             $sheet->setCellValue('A' . $row, $rec->region);
             $sheet->setCellValue('B' . $row, $rec->province);
             $sheet->setCellValue('C' . $row, $rec->district);
@@ -212,13 +190,13 @@ class HybridDistributionExport
             $sheet->setCellValue('G' . $row, $rec->farmer_first_name);
             $sheet->setCellValue('H' . $row, $rec->farmer_middle_initial);
             
-            $isMale = strtolower($rec->gender ?? '') === 'male' || $rec->is_male;
-            $sheet->setCellValue('I' . $row, $isMale ? '/' : '');
-            $sheet->setCellValue('J' . $row, !$isMale ? '/' : '');
+            $gender = $rec->gender ?? '';
+            $sheet->setCellValue('I' . $row, $gender === 'M' ? '/' : '');
+            $sheet->setCellValue('J' . $row, $gender === 'F' ? '/' : '');
             
             $sheet->setCellValue('K' . $row, $rec->farm_barangay);
             $sheet->setCellValue('L' . $row, $rec->farm_municipality);
-            $sheet->setCellValue('M' . $row, $rec->farm_province);
+            $sheet->setCellValue('M' . $row, $rec->farm_province ?? 'Bohol');
             $sheet->setCellValue('N' . $row, $rec->seedlings_received);
             $sheet->setCellValue('O' . $row, $rec->date_received?->format('m/d/Y') ?? '');
             $sheet->setCellValue('P' . $row, $rec->variety);
@@ -226,62 +204,136 @@ class HybridDistributionExport
             $sheet->setCellValue('R' . $row, $rec->date_planted?->format('m/d/Y') ?? '');
             $sheet->setCellValue('S' . $row, $rec->remarks);
             
-            $totalReceived += (int)$rec->seedlings_received;
-            $totalPlanted += (int)$rec->seedlings_planted;
-
             $sheet->getStyle("A$row:S$row")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+            
+            $totalPlanted += (int)$rec->seedlings_planted;
+            try { $totalReceived += (int)str_replace(',', '', $rec->seedlings_received); } catch (\Exception $e) {}
+            
             $row++;
         }
 
         // Total Row
         $sheet->setCellValue('F' . $row, 'TOTAL:');
+        $sheet->getStyle('F' . $row)->getFont()->setBold(true);
         $sheet->getStyle('F' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
-        $sheet->setCellValue('N' . $row, $totalReceived);
+        
+        if ($totalReceived > 0) {
+            $sheet->setCellValue('N' . $row, $totalReceived);
+            $sheet->getStyle('N' . $row)->getFont()->setBold(true);
+        }
         $sheet->setCellValue('Q' . $row, $totalPlanted);
+        $sheet->getStyle('Q' . $row)->getFont()->setBold(true);
         
-        $sheet->getStyle("A$row:S$row")->getFont()->setBold(true);
-        $sheet->getStyle("A$row:S$row")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
-        
-        $this->autoSizeColumns($sheet);
+        for ($c = 1; $c <= 19; $c++) {
+            $sheet->getCellByColumnAndRow($c, $row)->getStyle()->getBorders()->getTop()->setBorderStyle(Border::BORDER_THICK);
+            $sheet->getCellByColumnAndRow($c, $row)->getStyle()->getBorders()->getBottom()->setBorderStyle(Border::BORDER_THIN);
+        }
+
+        // Auto-size columns
+        foreach (range('A', 'S') as $columnID) {
+            $sheet->getColumnDimension($columnID)->setAutoSize(true);
+        }
+
         return $row;
     }
 
-    protected function drawFooter(Worksheet $sheet, $startRow)
+    protected function drawFooter(Worksheet $sheet, $startRow, $site, array $records)
     {
         $row = $startRow;
         
-        $sheet->setCellValue('A' . $row, 'Prepared by:');
-        $sheet->setCellValue('H' . $row, 'Reviewed by:');
-        $sheet->setCellValue('P' . $row, 'Noted by:');
+        $prepLabel = $site?->prepared_by_label ?: 'Prepared by:';
+        $revLabel = $site?->reviewed_by_label ?: 'Reviewed by:';
+        $noteLabel = $site?->noted_by_label ?: 'Noted by:';
         
+        $sheet->setCellValue('A' . $row, $prepLabel);
+        $sheet->setCellValue('H' . $row, $revLabel);
+        $sheet->setCellValue('O' . $row, $noteLabel);
+        
+        $signatureRow = $row + 1;
         $row += 4;
         
-        $prepName = auth()->user()->name ?? 'ROSITA J. MIASCO';
-        $prepTitle = auth()->user()->role ?? 'COS/Agriculturist';
+        $signatories = $this->resolveSignatories($site, $records);
         
-        $sheet->setCellValue('A' . $row, strtoupper($prepName));
-        $sheet->setCellValue('H' . $row, 'ALVIN B. CUBIBA');
-        $sheet->setCellValue('P' . $row, 'JOVENCIO G. FEUDILOA');
+        $sheet->setCellValue('A' . $row, $signatories['prepared']['name']);
+        $sheet->setCellValue('H' . $row, $signatories['reviewed']['name']);
+        $sheet->setCellValue('O' . $row, $signatories['noted']['name']);
         
-        $sheet->getStyle("A$row:S$row")->getFont()->setBold(true);
+        $sheet->getStyle("A$row")->getFont()->setBold(true);
         $sheet->getStyle("A$row")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet->getStyle("H$row")->getFont()->setBold(true);
         $sheet->getStyle("H$row")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-        $sheet->getStyle("P$row")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet->getStyle("O$row")->getFont()->setBold(true);
+        $sheet->getStyle("O$row")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
         
         $row++;
-        $sheet->setCellValue('A' . $row, $prepTitle);
-        $sheet->setCellValue('H' . $row, 'Senior Agriculturist');
-        $sheet->setCellValue('P' . $row, 'PCDM/Division Chief I');
+        $sheet->setCellValue('A' . $row, $signatories['prepared']['title']);
+        $sheet->setCellValue('H' . $row, $signatories['reviewed']['title']);
+        $sheet->setCellValue('O' . $row, $signatories['noted']['title']);
         
         $sheet->getStyle("A$row")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
         $sheet->getStyle("H$row")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-        $sheet->getStyle("P$row")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet->getStyle("O$row")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+        $this->addSignatures($sheet, $signatureRow, $signatories, ['prepared' => 'A', 'reviewed' => 'H', 'noted' => 'O']);
     }
 
-    protected function autoSizeColumns(Worksheet $sheet)
+    protected function resolveSignatories($site, array $records): array
     {
-        foreach (range('A', 'S') as $columnID) {
-            $sheet->getColumnDimension($columnID)->setAutoSize(true);
+        $preparedUser = null;
+        $reviewedUser = null;
+        $notedUser = null;
+
+        foreach (array_reverse($records) as $rec) {
+            if (!$preparedUser && $rec->preparedByUser) $preparedUser = $rec->preparedByUser;
+            if (!$reviewedUser && $rec->reviewedByUser) $reviewedUser = $rec->reviewedByUser;
+            if (!$notedUser && $rec->notedByUser) $notedUser = $rec->notedByUser;
+        }
+
+        return [
+            'prepared' => $this->resolveOneSignatory($site, 'prepared', $preparedUser, 'COS/Agriculturist'),
+            'reviewed' => $this->resolveOneSignatory($site, 'reviewed', $reviewedUser, 'Senior Agriculturist'),
+            'noted' => $this->resolveOneSignatory($site, 'noted', $notedUser, 'PCDM/Division Chief I'),
+        ];
+    }
+
+    protected function resolveOneSignatory($site, string $role, $user, string $defaultTitle): array
+    {
+        $nameField = "{$role}_by_name";
+        $titleField = "{$role}_by_title";
+
+        if ($site && !empty($site->$nameField)) {
+            return ['name' => strtoupper($site->$nameField), 'title' => $site->$titleField ?? $defaultTitle, 'user' => null];
+        }
+
+        if ($user) {
+            return ['name' => strtoupper($user->name), 'title' => $user->role_title ?? $defaultTitle, 'user' => $user];
+        }
+
+        return ['name' => '_______________________', 'title' => $defaultTitle, 'user' => null];
+    }
+
+    protected function addSignatures(Worksheet $sheet, int $row, array $signatories, array $cols)
+    {
+        foreach ($cols as $key => $col) {
+            $user = $signatories[$key]['user'] ?? null;
+            if ($user && $user->signature_image) {
+                try {
+                    $url = \Illuminate\Support\Facades\Storage::disk('cloudinary')->url($user->signature_image);
+                    $imgData = @file_get_contents($url);
+                    if ($imgData) {
+                        $tmp = tempnam(sys_get_temp_dir(), 'sig');
+                        file_put_contents($tmp, $imgData);
+                        $drawing = new Drawing();
+                        $drawing->setPath($tmp);
+                        $drawing->setHeight(40);
+                        $drawing->setCoordinates($col . $row);
+                        $drawing->setOffsetX(45);
+                        $drawing->setWorksheet($sheet);
+                    }
+                } catch (\Exception $e) {
+                    \Illuminate\Support\Facades\Log::error("Excel Signature Error: " . $e->getMessage());
+                }
+            }
         }
     }
 }

@@ -22,4 +22,13 @@ class CreatePollenProduction extends CreateRecord
             $this->loadLatestRecordData();
         }
     }
+
+    protected function mutateFormDataBeforeCreate(array $data): array
+    {
+        if (empty($data['field_site_id'])) {
+            $data['field_site_id'] = auth()->user()->field_site_id;
+        }
+
+        return $data;
+    }
 }

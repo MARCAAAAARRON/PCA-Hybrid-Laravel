@@ -16,7 +16,9 @@ class GenerateReport extends Page
 
     protected static ?string $navigationGroup = 'Reports';
 
-    protected static ?string $navigationLabel = 'Generate PDF Report';
+    protected static ?string $navigationLabel = 'Generate Reports';
+
+    protected static ?string $title = 'Generate Reports';
 
     protected static ?int $navigationSort = 1;
 
@@ -26,8 +28,11 @@ class GenerateReport extends Page
 
     public function mount(): void
     {
+        $user = auth()->user();
+
         $this->form->fill([
             'module' => 'distribution',
+            'field_site_id' => $user?->isSupervisor() ? $user->field_site_id : '',
             'year' => now()->year,
         ]);
     }
@@ -45,15 +50,16 @@ class GenerateReport extends Page
                                 'harvest' => 'Monthly Harvest',
                                 'nursery' => 'Nursery Operations',
                                 'pollen' => 'Pollen Production',
+                                'terminal' => 'Terminal Reports',
                                 'hybridization' => 'Hybridization Records',
                             ])
                             ->required(),
                         Forms\Components\Select::make('field_site_id')
                             ->label('Field Site')
-                            ->options(
-                                FieldSite::pluck('name', 'id')->prepend('All Sites', '')
-                            )
-                            ->default(''),
+                            ->options(fn () => $this->getFieldSiteOptions())
+                            ->default(fn () => auth()->user()?->isSupervisor() ? auth()->user()->field_site_id : '')
+                            ->disabled(fn () => auth()->user()?->isSupervisor())
+                            ->dehydrated(),
                         Forms\Components\Select::make('year')
                             ->options(fn () => collect(range(now()->year, 2024, -1))
                                 ->mapWithKeys(fn ($y) => [$y => $y]))
@@ -68,6 +74,10 @@ class GenerateReport extends Page
                                 10 => 'October', 11 => 'November', 12 => 'December',
                             ])
                             ->default(''),
+                        Forms\Components\Placeholder::make('spacer')
+                            ->hiddenLabel()
+                            ->content(new \Illuminate\Support\HtmlString('<div class="h-12"></div>'))
+                            ->columnSpanFull(),
                     ])->columns(4),
             ])
             ->statePath('data');
@@ -76,6 +86,11 @@ class GenerateReport extends Page
     public function generate(): void
     {
         $data = $this->form->getState();
+        $user = auth()->user();
+
+        if ($user?->isSupervisor()) {
+            $data['field_site_id'] = $user->field_site_id;
+        }
 
         $filters = [
             'field_site_id' => $data['field_site_id'] ?: null,
@@ -104,5 +119,109 @@ class GenerateReport extends Page
                 ->danger()
                 ->send();
         }
+    }
+
+    public function exportExcel()
+    {
+        $data = $this->form->getState();
+        $user = auth()->user();
+
+        if ($user?->isSupervisor()) {
+            $data['field_site_id'] = $user->field_site_id;
+        }
+        
+        $moduleMap = [
+            'distribution' => [
+                'model' => \App\Models\HybridDistribution::class,
+                'export' => \App\Exports\HybridDistributionExport::class,
+                'with' => ['fieldSite'],
+            ],
+            'harvest' => [
+                'model' => \App\Models\MonthlyHarvest::class,
+                'export' => \App\Exports\MonthlyHarvestExport::class,
+                'with' => ['fieldSite', 'varieties'],
+            ],
+            'nursery' => [
+                'model' => \App\Models\NurseryOperation::class,
+                'export' => \App\Exports\NurseryOperationExport::class,
+                'with' => ['fieldSite', 'batches.varieties'],
+                'scope' => 'operation',
+            ],
+            'terminal' => [ // Although not in select yet, good to have
+                'model' => \App\Models\NurseryOperation::class,
+                'export' => \App\Exports\NurseryOperationExport::class,
+                'with' => ['fieldSite', 'batches.varieties'],
+                'scope' => 'terminal',
+            ],
+            'pollen' => [
+                'model' => \App\Models\PollenProduction::class,
+                'export' => \App\Exports\PollenProductionExport::class,
+                'with' => ['fieldSite'],
+            ],
+            'hybridization' => [
+                'model' => \App\Models\HybridizationRecord::class,
+                'export' => null, // Standard filament export usually, but the user wants branded?
+            ],
+        ];
+
+        $config = $moduleMap[$data['module']] ?? null;
+        
+        if (!$config) {
+            Notification::make()->title('Module not supported for Excel export yet.')->warning()->send();
+            return;
+        }
+
+        $query = $config['model']::query();
+        
+        if (isset($config['scope'])) {
+            $query->where('report_type', $config['scope']);
+        }
+        
+        $query->whereYear('report_month', $data['year']);
+        
+        if ($data['month']) {
+            $query->whereMonth('report_month', $data['month']);
+        }
+        
+        if ($data['field_site_id']) {
+            $query->where('field_site_id', $data['field_site_id']);
+        }
+
+        if ($user?->isSupervisor()) {
+            $query->where('field_site_id', $user->field_site_id);
+        }
+
+        $records = $query->with($config['with'] ?? [])->get();
+
+        if ($records->isEmpty()) {
+            Notification::make()->title('No records found for the selected filters.')->warning()->send();
+            return;
+        }
+
+        if ($data['module'] === 'hybridization') {
+            // For now, if no branded export, show message or use standard?
+            // User requested branded for most, hybridization might need a generic one.
+            Notification::make()->title('Branded Excel for Hybridization coming soon.')->info()->send();
+            return;
+        }
+
+        $exportClass = $config['export'];
+        return (new $exportClass($records))->export();
+    }
+
+    protected function getFieldSiteOptions(): array
+    {
+        $user = auth()->user();
+
+        if ($user?->isSupervisor()) {
+            return FieldSite::query()
+                ->where('id', $user->field_site_id)
+                ->pluck('name', 'id')
+                ->toArray();
+        }
+
+        return FieldSite::pluck('name', 'id')
+            ->prepend('All Sites', '')
+            ->toArray();
     }
 }

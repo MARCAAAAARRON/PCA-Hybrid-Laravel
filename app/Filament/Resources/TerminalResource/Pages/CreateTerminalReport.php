@@ -5,6 +5,7 @@ namespace App\Filament\Resources\TerminalResource\Pages;
 use App\Filament\Resources\TerminalResource;
 use Filament\Resources\Pages\CreateRecord;
 use App\Filament\Traits\HasCarryForward;
+use Illuminate\Validation\ValidationException;
 
 class CreateTerminalReport extends CreateRecord
 {
@@ -40,5 +41,63 @@ class CreateTerminalReport extends CreateRecord
         if (auth()->user()?->isSupervisor()) {
             $this->loadLatestRecordData();
         }
+    }
+
+    protected function mutateFormDataBeforeCreate(array $data): array
+    {
+        if (empty($data['field_site_id'])) {
+            $data['field_site_id'] = auth()->user()->field_site_id;
+        }
+
+        if (empty($data['field_site_id'])) {
+            throw ValidationException::withMessages([
+                'data.field_site_id' => 'Field site is required. Please assign a field site to your account or select one before saving.',
+            ]);
+        }
+
+        $data = $this->normalizeVarietyNumericFields($data);
+
+        return $data;
+    }
+
+    protected function normalizeVarietyNumericFields(array $data): array
+    {
+        $numericFields = [
+            'seednuts_sown',
+            'seedlings_germinated',
+            'ungerminated_seednuts',
+            'culled_seedlings',
+            'good_seedlings',
+            'ready_to_plant',
+            'seedlings_dispatched',
+        ];
+
+        if (!is_array($data['batches'] ?? null)) {
+            return $data;
+        }
+
+        foreach ($data['batches'] as $batchIndex => $batch) {
+            if (!is_array($batch['varieties'] ?? null)) {
+                continue;
+            }
+
+            foreach ($batch['varieties'] as $varietyIndex => $variety) {
+                foreach ($numericFields as $field) {
+                    $value = $variety[$field] ?? null;
+                    $data['batches'][$batchIndex]['varieties'][$varietyIndex][$field] = $this->normalizeNumericValue($value);
+                }
+            }
+        }
+
+        return $data;
+    }
+
+    protected function normalizeNumericValue(mixed $value): int
+    {
+        if ($value === null || $value === '') {
+            return 0;
+        }
+
+        return max(0, (int) $value);
     }
 }

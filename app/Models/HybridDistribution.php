@@ -6,10 +6,11 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use App\Models\Scopes\FieldSiteScope;
 use App\Models\Traits\HasApprovalWorkflow;
+use App\Models\Traits\NotifiesOnRecordCreation;
 
 class HybridDistribution extends Model
 {
-    use HasApprovalWorkflow;
+    use HasApprovalWorkflow, NotifiesOnRecordCreation;
 
     protected static function booted(): void
     {

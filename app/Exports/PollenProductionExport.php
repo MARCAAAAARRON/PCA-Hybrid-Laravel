@@ -16,35 +16,63 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 class PollenProductionExport
 {
     protected array $records;
-    protected $site;
-    protected Carbon $asOfDate;
 
     public function __construct(iterable $records)
     {
         $this->records = is_array($records) ? $records : $records->all();
-        $this->site = count($this->records) > 0 ? $this->records[0]->fieldSite : null;
-        $this->asOfDate = now();
     }
 
     public function export()
     {
         $spreadsheet = new Spreadsheet();
-        $sheet = $spreadsheet->getActiveSheet();
-        $sheet->setTitle('Pollen Production');
+        $spreadsheet->removeSheetByIndex(0);
 
-        $this->setupPage($sheet);
-        $this->drawHeader($sheet);
-        $this->drawTableHeaders($sheet);
-        $currentRow = $this->drawData($sheet);
-        $this->drawFooter($sheet, $currentRow + 2);
+        // Group records by FieldSite
+        $sites = [];
+        foreach ($this->records as $rec) {
+            $siteName = $rec->fieldSite?->name ?? 'Unknown Site';
+            $siteId = $rec->field_site_id ?? 0;
+            if (!isset($sites[$siteId])) {
+                $sites[$siteId] = [
+                    'name' => $siteName,
+                    'site' => $rec->fieldSite,
+                    'records' => [],
+                ];
+            }
+            $sites[$siteId]['records'][] = $rec;
+        }
+
+        if (empty($sites)) {
+            $sheet = $spreadsheet->createSheet();
+            $sheet->setTitle('No Data');
+            $sheet->setCellValue('A1', 'No records found.');
+        } else {
+            foreach ($sites as $siteId => $siteData) {
+                $sheet = $spreadsheet->createSheet();
+                $sheet->setTitle(substr($siteData['name'], 0, 31));
+                $this->buildSheet($sheet, $siteData['records'], $siteData['site']);
+            }
+        }
 
         $writer = new Xlsx($spreadsheet);
-        
-        $fileName = 'Pollen_Production_' . str_replace(' ', '_', $this->site?->name ?? 'Export') . '_' . now()->format('Y-m-d') . '.xlsx';
+        $fileName = 'Pollen_Production_' . now()->format('Y-m-d') . '.xlsx';
         $tempFile = tempnam(sys_get_temp_dir(), 'export_pollen');
         $writer->save($tempFile);
 
         return response()->download($tempFile, $fileName)->deleteFileAfterSend(true);
+    }
+
+    protected function buildSheet(Worksheet $sheet, array $records, $site)
+    {
+        $asOfDate = count($records) > 0 && $records[0]->report_month
+            ? Carbon::parse($records[0]->report_month)
+            : now();
+
+        $this->setupPage($sheet);
+        $this->drawHeader($sheet, $asOfDate, $site, $records);
+        $this->drawTableHeaders($sheet);
+        $currentRow = $this->drawData($sheet, $records);
+        $this->drawFooter($sheet, $currentRow + 2, $site, $records);
     }
 
     protected function setupPage(Worksheet $sheet)
@@ -55,7 +83,7 @@ class PollenProductionExport
         $sheet->getPageSetup()->setFitToHeight(0);
     }
 
-    protected function drawHeader(Worksheet $sheet)
+    protected function drawHeader(Worksheet $sheet, Carbon $asOfDate, $site, array $records)
     {
         // Logo
         $logoPath = public_path('images/PCA_DA_Logo.png');
@@ -80,20 +108,20 @@ class PollenProductionExport
         $sheet->getStyle('A2')->getFont()->setSize(10);
         $sheet->getStyle('A2')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
-        $sheetName = $this->site?->name ?? 'All Sites';
+        $siteName = $site?->name ?? 'All Sites';
         $sheet->mergeCells("A3:{$mergeEnd}3");
-        $sheet->setCellValue('A3', "Pollen Production and Inventory Monthly Report — {$sheetName}");
+        $sheet->setCellValue('A3', "Pollen Production and Inventory Monthly Report — {$siteName}");
         $sheet->getStyle('A3')->getFont()->setSize(10);
         $sheet->getStyle('A3')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
-        $asOfStr = 'as of ' . $this->asOfDate->format('F d, Y');
+        $asOfStr = 'For the month of ' . $asOfDate->format('F Y');
         $sheet->mergeCells("A4:{$mergeEnd}4");
         $sheet->setCellValue('A4', $asOfStr);
         $sheet->getStyle('A4')->getFont()->setSize(10)->setUnderline(true);
         $sheet->getStyle('A4')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
         // Center/Unit info
-        $centerText = $this->site?->name ?? 'Unknown';
+        $centerText = $site?->name ?? 'Unknown';
         if (str_contains(strtolower($centerText), 'loay')) {
             $centerText = 'LOAY CODE FARM, LAS SALINAS SUR, LOAY, BOHOL';
         }
@@ -102,7 +130,7 @@ class PollenProductionExport
         $sheet->setCellValue('A6', "CENTER/UNIT: {$centerText}");
         $sheet->getStyle('A6')->getFont()->setBold(true);
 
-        $pollenVar = count($this->records) > 0 ? $this->records[0]->pollen_variety : '';
+        $pollenVar = count($records) > 0 ? $records[0]->pollen_variety : '';
         $sheet->mergeCells("A7:{$mergeEnd}7");
         $sheet->setCellValue('A7', "POLLEN VARIETY: {$pollenVar}");
         $sheet->getStyle('A7')->getFont()->setBold(true);
@@ -168,44 +196,48 @@ class PollenProductionExport
         $sheet->mergeCells('L9:L10');
     }
 
-    protected function drawData(Worksheet $sheet)
+    protected function drawData(Worksheet $sheet, array $records)
     {
         $row = 11;
         $totalReceived = 0;
         $totalUtil = 0;
 
-        foreach ($this->records as $rec) {
+        foreach ($records as $index => $rec) {
+            $currentRow = $row;
             $sheet->setCellValue('A' . $row, $rec->month_label);
-            $sheet->setCellValue('B' . $row, $rec->ending_balance_prev > 0 ? "{$rec->ending_balance_prev} g" : '');
+            $sheet->setCellValue('B' . $row, $rec->ending_balance_prev > 0 ? $rec->ending_balance_prev : 0);
             $sheet->setCellValue('C' . $row, $rec->pollen_source);
             $sheet->setCellValue('D' . $row, $rec->date_received?->format('m/d/Y') ?? '');
-            $sheet->setCellValue('E' . $row, $rec->pollens_received > 0 ? "{$rec->pollens_received} g" : '');
-            $sheet->setCellValue('F' . $row, $rec->week1 > 0 ? "{$rec->week1} g" : '');
-            $sheet->setCellValue('G' . $row, $rec->week2 > 0 ? "{$rec->week2} g" : '');
-            $sheet->setCellValue('H' . $row, $rec->week3 > 0 ? "{$rec->week3} g" : '');
-            $sheet->setCellValue('I' . $row, $rec->week4 > 0 ? "{$rec->week4} g" : '');
-            $sheet->setCellValue('J' . $row, $rec->week5 > 0 ? "{$rec->week5} g" : '');
-            $sheet->setCellValue('K' . $row, $rec->total_utilization > 0 ? "{$rec->total_utilization} g" : '');
-            $sheet->setCellValue('L' . $row, $rec->ending_balance > 0 ? "{$rec->ending_balance} g" : '');
+            $sheet->setCellValue('E' . $row, $rec->pollens_received > 0 ? $rec->pollens_received : 0);
+            $sheet->setCellValue('F' . $row, $rec->week1 > 0 ? $rec->week1 : 0);
+            $sheet->setCellValue('G' . $row, $rec->week2 > 0 ? $rec->week2 : 0);
+            $sheet->setCellValue('H' . $row, $rec->week3 > 0 ? $rec->week3 : 0);
+            $sheet->setCellValue('I' . $row, $rec->week4 > 0 ? $rec->week4 : 0);
+            $sheet->setCellValue('J' . $row, $rec->week5 > 0 ? $rec->week5 : 0);
             
-            $totalReceived += (float)$rec->pollens_received;
-            $totalUtil += (float)$rec->total_utilization;
-
+            // COMPUTATIONAL: Total Utilization = Sum of Week 1-5
+            $sheet->setCellValue('K' . $row, "=SUM(F$currentRow:J$currentRow)");
+            
+            // COMPUTATIONAL: Ending Balance = Prev + Received - Utilized
+            $sheet->setCellValue('L' . $row, "=B$currentRow + E$currentRow - K$currentRow");
+            
+            // Formatting
+            $sheet->getStyle("B$row:L$row")->getNumberFormat()->setFormatCode('#,##0.00 "g"');
             $sheet->getStyle("A$row:L$row")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
             $row++;
         }
+
+        $lastDataRow = $row - 1;
 
         // Total Row
         $sheet->setCellValue('A' . $row, 'TOTAL:');
         $sheet->getStyle('A' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
         
-        if ($totalReceived > 0) {
-            $sheet->setCellValue('E' . $row, $this->formatWeight($totalReceived));
-        }
-        if ($totalUtil > 0) {
-            $sheet->setCellValue('K' . $row, $this->formatWeight($totalUtil));
-        }
+        // COMPUTATIONAL: Totals for Received and Utilization
+        $sheet->setCellValue('E' . $row, "=SUM(E11:E$lastDataRow)");
+        $sheet->setCellValue('K' . $row, "=SUM(K11:K$lastDataRow)");
 
+        $sheet->getStyle("E$row:K$row")->getNumberFormat()->setFormatCode('#,##0.00 "g"');
         $sheet->getStyle("A$row:L$row")->getFont()->setBold(true);
         $sheet->getStyle("A$row:L$row")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
         
@@ -221,22 +253,26 @@ class PollenProductionExport
         return number_format($grams, 2) . ' g';
     }
 
-    protected function drawFooter(Worksheet $sheet, $startRow)
+    protected function drawFooter(Worksheet $sheet, $startRow, $site, array $records)
     {
         $row = $startRow;
         
-        $sheet->setCellValue('A' . $row, 'Prepared by:');
-        $sheet->setCellValue('F' . $row, 'Reviewed by:');
-        $sheet->setCellValue('I' . $row, 'Noted by:');
+        $prepLabel = $site?->prepared_by_label ?: 'Prepared by:';
+        $revLabel = $site?->reviewed_by_label ?: 'Reviewed by:';
+        $noteLabel = $site?->noted_by_label ?: 'Noted by:';
         
+        $sheet->setCellValue('A' . $row, $prepLabel);
+        $sheet->setCellValue('F' . $row, $revLabel);
+        $sheet->setCellValue('I' . $row, $noteLabel);
+        
+        $signatureRow = $row + 1;
         $row += 4;
         
-        $prepName = auth()->user()->name ?? 'ROSITA J. MIASCO';
-        $prepTitle = auth()->user()->role ?? 'COS/Agriculturist';
+        $signatories = $this->resolveSignatories($site, $records);
         
-        $sheet->setCellValue('A' . $row, strtoupper($prepName));
-        $sheet->setCellValue('F' . $row, 'ALVIN B. CUBIBA');
-        $sheet->setCellValue('I' . $row, 'JOVENCIO G. FEUDILOA');
+        $sheet->setCellValue('A' . $row, $signatories['prepared']['name']);
+        $sheet->setCellValue('F' . $row, $signatories['reviewed']['name']);
+        $sheet->setCellValue('I' . $row, $signatories['noted']['name']);
         
         $sheet->getStyle("A$row")->getFont()->setBold(true);
         $sheet->getStyle("A$row")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
@@ -246,19 +282,81 @@ class PollenProductionExport
         $sheet->getStyle("I$row")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
         
         $row++;
-        $sheet->setCellValue('A' . $row, $prepTitle);
-        $sheet->setCellValue('F' . $row, 'Senior Agriculturist');
-        $sheet->setCellValue('I' . $row, 'PCDM/Division Chief I');
+        $sheet->setCellValue('A' . $row, $signatories['prepared']['title']);
+        $sheet->setCellValue('F' . $row, $signatories['reviewed']['title']);
+        $sheet->setCellValue('I' . $row, $signatories['noted']['title']);
         
         $sheet->getStyle("A$row")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
         $sheet->getStyle("F$row")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
         $sheet->getStyle("I$row")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+        $this->addSignatures($sheet, $signatureRow, $signatories, ['prepared' => 'A', 'reviewed' => 'F', 'noted' => 'I']);
+    }
+
+    protected function resolveSignatories($site, array $records): array
+    {
+        $preparedUser = null;
+        $reviewedUser = null;
+        $notedUser = null;
+
+        foreach (array_reverse($records) as $rec) {
+            if (!$preparedUser && $rec->preparedByUser) $preparedUser = $rec->preparedByUser;
+            if (!$reviewedUser && $rec->reviewedByUser) $reviewedUser = $rec->reviewedByUser;
+            if (!$notedUser && $rec->notedByUser) $notedUser = $rec->notedByUser;
+        }
+
+        return [
+            'prepared' => $this->resolveOneSignatory($site, 'prepared', $preparedUser, 'COS/Agriculturist'),
+            'reviewed' => $this->resolveOneSignatory($site, 'reviewed', $reviewedUser, 'Senior Agriculturist'),
+            'noted' => $this->resolveOneSignatory($site, 'noted', $notedUser, 'PCDM/Division Chief I'),
+        ];
+    }
+
+    protected function resolveOneSignatory($site, string $role, $user, string $defaultTitle): array
+    {
+        $nameField = "{$role}_by_name";
+        $titleField = "{$role}_by_title";
+
+        if ($site && !empty($site->$nameField)) {
+            return ['name' => strtoupper($site->$nameField), 'title' => $site->$titleField ?? $defaultTitle, 'user' => null];
+        }
+
+        if ($user) {
+            return ['name' => strtoupper($user->name), 'title' => $user->role_title ?? $defaultTitle, 'user' => $user];
+        }
+
+        return ['name' => '_______________________', 'title' => $defaultTitle, 'user' => null];
     }
 
     protected function autoSizeColumns(Worksheet $sheet)
     {
         foreach (range('A', 'L') as $columnID) {
             $sheet->getColumnDimension($columnID)->setAutoSize(true);
+        }
+    }
+
+    protected function addSignatures(Worksheet $sheet, int $row, array $signatories, array $cols)
+    {
+        foreach ($cols as $key => $col) {
+            $user = $signatories[$key]['user'] ?? null;
+            if ($user && $user->signature_image) {
+                try {
+                    $url = \Illuminate\Support\Facades\Storage::disk('cloudinary')->url($user->signature_image);
+                    $imgData = @file_get_contents($url);
+                    if ($imgData) {
+                        $tmp = tempnam(sys_get_temp_dir(), 'sig');
+                        file_put_contents($tmp, $imgData);
+                        $drawing = new Drawing();
+                        $drawing->setPath($tmp);
+                        $drawing->setHeight(40);
+                        $drawing->setCoordinates($col . $row);
+                        $drawing->setOffsetX(45);
+                        $drawing->setWorksheet($sheet);
+                    }
+                } catch (\Exception $e) {
+                    \Illuminate\Support\Facades\Log::error("Excel Signature Error: " . $e->getMessage());
+                }
+            }
         }
     }
 }

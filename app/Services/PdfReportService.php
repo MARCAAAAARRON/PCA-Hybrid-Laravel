@@ -22,11 +22,22 @@ class PdfReportService
      */
     public function generate(string $module, array $filters = []): Report
     {
+        $user = auth()->user();
+        $isSupervisor = $user?->isSupervisor() ?? false;
+        $canBypassSiteScope = $user && ($user->isAdmin() || $user->isSuperAdmin() || $user->isSysAdmin());
+        $effectiveFieldSiteId = $isSupervisor
+            ? $user->field_site_id
+            : ($filters['field_site_id'] ?? null);
+
         $query = $this->getQuery($module);
 
         // Apply filters
-        if (!empty($filters['field_site_id'])) {
-            $query->withoutGlobalScopes()->where('field_site_id', $filters['field_site_id']);
+        if (!empty($effectiveFieldSiteId)) {
+            if ($canBypassSiteScope && !$isSupervisor) {
+                $query->withoutGlobalScopes()->where('field_site_id', $effectiveFieldSiteId);
+            } else {
+                $query->where('field_site_id', $effectiveFieldSiteId);
+            }
         }
         if (!empty($filters['year'])) {
             $dateColumn = $module === 'hybridization' ? 'date_planted' : 'report_month';
@@ -38,9 +49,28 @@ class PdfReportService
 
         $records = $query->get();
 
-        $fieldSite = !empty($filters['field_site_id'])
-            ? FieldSite::find($filters['field_site_id'])?->name ?? 'All Sites'
+        // Signatory Logic
+        $signatories = [
+            'prepared' => auth()->user(),
+            'reviewed' => null,
+            'noted' => null,
+        ];
+
+        // If filtering for a specific site/month, try to find the official record to get exact signatories
+        if (!empty($effectiveFieldSiteId) && !empty($filters['month']) && !empty($filters['year'])) {
+            $officialRecord = $records->first(); // Typically there's one monthly record per site
+            if ($officialRecord) {
+                if ($officialRecord->preparedByUser) $signatories['prepared'] = $officialRecord->preparedByUser;
+                if ($officialRecord->reviewedByUser) $signatories['reviewed'] = $officialRecord->reviewedByUser;
+                if ($officialRecord->notedByUser) $signatories['noted'] = $officialRecord->notedByUser;
+            }
+        }
+
+        $fieldSite = !empty($effectiveFieldSiteId)
+            ? FieldSite::find($effectiveFieldSiteId)?->name ?? 'All Sites'
             : 'All Sites';
+
+        $filters['field_site_id'] = $effectiveFieldSiteId;
 
         // Generate PDF using Blade view
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView("reports.{$module}", [
@@ -49,6 +79,7 @@ class PdfReportService
             'year' => $filters['year'] ?? now()->year,
             'month' => $filters['month'] ?? null,
             'generatedAt' => now()->timezone('Asia/Manila')->format('F j, Y h:i A'),
+            'signatories' => $signatories,
         ]);
 
         $pdf->setPaper('letter', 'landscape');

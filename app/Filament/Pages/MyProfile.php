@@ -16,6 +16,12 @@ use Jeffgreco13\FilamentBreezy\Pages\MyProfilePage as BreezyProfilePage;
 class MyProfile extends BreezyProfilePage
 {
     protected static string $view = 'filament.pages.my-profile';
+    
+    protected static ?string $navigationIcon = 'heroicon-o-user-circle';
+
+    protected static ?string $navigationLabel = 'Profile';
+
+    protected static ?string $title = 'My Profile';
 
     public ?array $data = [];
 
@@ -37,32 +43,49 @@ class MyProfile extends BreezyProfilePage
     {
         return $form
             ->schema([
-                Grid::make(3)
+                Section::make('Profile Information')
+                    ->icon('heroicon-o-user-circle')
                     ->schema([
-                        TextInput::make('first_name')
-                            ->label('First Name')
-                            ->required(),
-                        TextInput::make('middle_initial')
-                            ->label('M.I.')
-                            ->maxLength(10),
-                        TextInput::make('last_name')
-                            ->label('Last Name')
-                            ->required(),
+                        Grid::make(3)
+                            ->schema([
+                                TextInput::make('first_name')
+                                    ->label('First Name')
+                                    ->required(),
+                                TextInput::make('middle_initial')
+                                    ->label('M.I.')
+                                    ->maxLength(10),
+                                TextInput::make('last_name')
+                                    ->label('Last Name')
+                                    ->required(),
+                            ]),
+                        TextInput::make('email')
+                            ->label('Email')
+                            ->email()
+                            ->required()
+                            ->unique('users', 'email', ignorable: auth()->user()),
                     ]),
-                TextInput::make('email')
-                    ->label('Email')
-                    ->email()
-                    ->required()
-                    ->unique('users', 'email', ignorable: auth()->user()),
                 
-                FileUpload::make('signature_image')
-                    ->label('Digital Signature')
-                    ->image()
-                    ->disk('public')
-                    ->directory('signatures')
-                    ->helperText('Upload a clear image of your signature (PNG with transparent background recommended).'),
+                Section::make('Digital Signature')
+                    ->icon('heroicon-o-pencil')
+                    ->schema([
+                        FileUpload::make('signature_image')
+                            ->label('Digital Signature')
+                            ->image()
+                            ->disk('cloudinary')
+                            ->directory('signatures')
+                            ->imageEditor()
+                            ->imageEditorAspectRatios([
+                                null,
+                                '16:9',
+                                '4:3',
+                                '1:1',
+                            ])
+                            ->extraInputAttributes(['capture' => 'environment'])
+                            ->helperText('Snap/Upload your signature. IMPORTANT: Click the PENCIL icon on the image to CROP it before saving.'),
+                    ]),
                 
                 Section::make('Change Password')
+                    ->icon('heroicon-o-key')
                     ->description('Leave blank to keep current password')
                     ->schema([
                         TextInput::make('current_password')
@@ -117,5 +140,14 @@ class MyProfile extends BreezyProfilePage
             ->success()
             ->title('Profile updated successfully.')
             ->send();
+    }
+
+    public function logout(): void
+    {
+        auth()->logout();
+        session()->invalidate();
+        session()->regenerateToken();
+
+        $this->redirect(filament()->getLoginUrl());
     }
 }

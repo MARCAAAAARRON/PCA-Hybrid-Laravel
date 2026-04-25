@@ -8,8 +8,11 @@
                         @if(auth()->user()->avatar_url)
                             <img src="{{ Storage::url(auth()->user()->avatar_url) }}" alt="Avatar" class="w-24 h-24 rounded-full object-cover border-4 border-primary-50">
                         @else
-                            <div class="w-24 h-24 rounded-full bg-primary-100 flex items-center justify-center border-4 border-primary-50">
-                                <x-heroicon-s-user class="w-12 h-12 text-primary-600" />
+                            <div class="rounded-full flex items-center justify-center border-8 border-white dark:border-gray-800 shadow-2xl transition-all hover:scale-105 active:scale-95 mb-8" 
+                                 style="background: linear-gradient(135deg, #059669 0%, #10b981 100%); width: 160px; height: 160px; min-width: 160px; min-height: 160px;">
+                                <span class="font-black text-white tracking-tighter drop-shadow-md" style="font-size: 4rem;">
+                                    {{ strtoupper(substr(auth()->user()->first_name ?? 'U', 0, 1) . substr(auth()->user()->last_name ?? '', 0, 1)) }}
+                                </span>
                             </div>
                         @endif
                     </div>
@@ -52,6 +55,18 @@
                             <span class="font-semibold">Last Login:</span>
                             <span>{{ now()->format('M j, Y g:i A') }}</span>
                         </div>
+
+                        <div class="pt-4">
+                            <x-filament::button 
+                                color="danger" 
+                                icon="heroicon-m-arrow-left-on-rectangle"
+                                wire:click="logout"
+                                wire:confirm="Are you sure you want to log out?"
+                                class="w-full"
+                            >
+                                Log Out
+                            </x-filament::button>
+                        </div>
                     </div>
                 </div>
             </x-filament::section>
@@ -62,7 +77,7 @@
             <x-filament::section>
                 <x-slot name="heading">
                     <div class="flex items-center gap-2">
-                        <x-heroicon-m-pencil-square class="w-5 h-5 text-primary-600" />
+                        <x-heroicon-m-user-circle class="w-5 h-5 text-primary-600" />
                         <span>Edit Profile</span>
                     </div>
                 </x-slot>

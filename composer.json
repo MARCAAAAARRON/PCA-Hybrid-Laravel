@@ -15,6 +15,7 @@
         "php": "^8.2",
         "barryvdh/laravel-dompdf": "^3.1",
         "bezhansalleh/filament-shield": "^3.3",
+        "cloudinary-labs/cloudinary-laravel": "*",
         "dedoc/scramble": "^0.12.10",
         "dutchcodingcompany/filament-socialite": "^2.3",
         "filament/filament": "^3.2",

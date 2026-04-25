@@ -11,7 +11,7 @@ use Filament\Widgets\ChartWidget;
 class FieldDataChart extends ChartWidget
 {
     protected static ?int $sort = 2;
-    protected int | string | array $columnSpan = 2;
+    protected int|string|array $columnSpan = 2;
 
     public static function canView(): bool
     {
@@ -84,9 +84,12 @@ class FieldDataChart extends ChartWidget
         return 'bar';
     }
 
+    protected static ?string $maxHeight = '750px';
+
     protected function getOptions(): array
     {
         return [
+            'maintainAspectRatio' => false,
             'plugins' => [
                 'legend' => [
                     'display' => false,

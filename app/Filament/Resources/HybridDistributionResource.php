@@ -257,8 +257,54 @@ class HybridDistributionResource extends Resource implements HasShieldPermission
                     ->label('Formatted Export (Excel)')
                     ->icon('heroicon-o-document-chart-bar')
                     ->color('success')
-                    ->action(function (Tables\Table $table) {
-                        $records = $table->getQuery()->get();
+                    ->form([
+                        Forms\Components\Select::make('year')
+                            ->options(fn () => collect(range(now()->year, 2024, -1))
+                                ->mapWithKeys(fn ($y) => [$y => $y]))
+                            ->default(now()->year)
+                            ->required(),
+                        Forms\Components\Select::make('month')
+                            ->options([
+                                1 => 'January', 2 => 'February', 3 => 'March',
+                                4 => 'April', 5 => 'May', 6 => 'June',
+                                7 => 'July', 8 => 'August', 9 => 'September',
+                                10 => 'October', 11 => 'November', 12 => 'December',
+                            ])
+                            ->nullable(),
+                        Forms\Components\Select::make('field_site_id')
+                            ->label('Field Site')
+                            ->relationship('fieldSite', 'name')
+                            ->nullable()
+                            ->searchable()
+                            ->preload()
+                            ->hidden(fn () => auth()->user()?->isSupervisor())
+                            ->default(fn () => auth()->user()?->isSupervisor() ? auth()->user()->field_site_id : null),
+                    ])
+                    ->action(function (array $data) {
+                        $query = \App\Models\HybridDistribution::query();
+                        
+                        $query->whereYear('report_month', $data['year']);
+                        
+                        if ($data['month']) {
+                            $query->whereMonth('report_month', $data['month']);
+                        }
+                        
+                        if (auth()->user()?->isSupervisor()) {
+                            $query->where('field_site_id', auth()->user()->field_site_id);
+                        } elseif ($data['field_site_id']) {
+                            $query->where('field_site_id', $data['field_site_id']);
+                        }
+                        
+                        $records = $query->with(['fieldSite'])->get();
+                        
+                        if ($records->isEmpty()) {
+                            \Filament\Notifications\Notification::make()
+                                ->warning()
+                                ->title('No records found for the selected filters.')
+                                ->send();
+                            return;
+                        }
+
                         return (new \App\Exports\HybridDistributionExport($records))->export();
                     }),
             ]);

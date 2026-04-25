@@ -123,6 +123,7 @@ class MonthlyHarvestResource extends Resource implements HasShieldPermissions
                     ])->columns(4),
 
                 Forms\Components\Section::make('Farm Details')
+                    ->icon('heroicon-o-map')
                     ->schema([
                         Forms\Components\TextInput::make('area_ha')
                             ->label('Area (Ha.)')
@@ -249,6 +250,18 @@ class MonthlyHarvestResource extends Resource implements HasShieldPermissions
             ])
             ->defaultSort('report_month', 'desc')
             ->actions([
+                Tables\Actions\Action::make('downloadPdf')
+                    ->label('Download PDF')
+                    ->icon('heroicon-o-document-arrow-down')
+                    ->color('success')
+                    ->action(function (\App\Models\MonthlyHarvest $record) {
+                        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.monthly-harvest-report', [
+                            'record' => $record->loadMissing('fieldSite', 'varieties', 'preparedBy', 'reviewedBy')
+                        ]);
+                        
+                        $filename = 'Harvest_Report_' . $record->report_month->format('Y_m') . '_' . \Illuminate\Support\Str::slug($record->fieldSite->name) . '.pdf';
+                        return response()->streamDownload(fn () => print($pdf->output()), $filename);
+                    }),
                 Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),
@@ -266,10 +279,85 @@ class MonthlyHarvestResource extends Resource implements HasShieldPermissions
                     ->label('Formatted Export (Excel)')
                     ->icon('heroicon-o-document-chart-bar')
                     ->color('success')
-                    ->action(function (Tables\Table $table) {
-                        $records = $table->getQuery()->get();
+                    ->form([
+                        Forms\Components\Select::make('year')
+                            ->options(fn () => collect(range(now()->year, 2024, -1))
+                                ->mapWithKeys(fn ($y) => [$y => $y]))
+                            ->default(now()->year)
+                            ->required(),
+                        Forms\Components\Select::make('month')
+                            ->options([
+                                1 => 'January', 2 => 'February', 3 => 'March',
+                                4 => 'April', 5 => 'May', 6 => 'June',
+                                7 => 'July', 8 => 'August', 9 => 'September',
+                                10 => 'October', 11 => 'November', 12 => 'December',
+                            ])
+                            ->nullable(),
+                        Forms\Components\Select::make('field_site_id')
+                            ->label('Field Site')
+                            ->relationship('fieldSite', 'name')
+                            ->nullable()
+                            ->searchable()
+                            ->preload()
+                            ->hidden(fn () => auth()->user()?->isSupervisor())
+                            ->default(fn () => auth()->user()?->isSupervisor() ? auth()->user()->field_site_id : null),
+                    ])
+                    ->action(function (array $data) {
+                        $query = \App\Models\MonthlyHarvest::query();
+                        
+                        $query->whereYear('report_month', $data['year']);
+                        
+                        if ($data['month']) {
+                            $query->whereMonth('report_month', $data['month']);
+                        }
+                        
+                        if (auth()->user()?->isSupervisor()) {
+                            $query->where('field_site_id', auth()->user()->field_site_id);
+                        } elseif ($data['field_site_id']) {
+                            $query->where('field_site_id', $data['field_site_id']);
+                        }
+                        
+                        $records = $query->with(['fieldSite', 'varieties'])->get();
+                        
+                        if ($records->isEmpty()) {
+                            \Filament\Notifications\Notification::make()
+                                ->warning()
+                                ->title('No records found for the selected filters.')
+                                ->send();
+                            return;
+                        }
+
                         return (new \App\Exports\MonthlyHarvestExport($records))->export();
                     }),
+            ]);
+    }
+
+    public static function infolist(\Filament\Infolists\Infolist $infolist): \Filament\Infolists\Infolist
+    {
+        return $infolist
+            ->schema([
+                \Filament\Infolists\Components\Section::make('General Information')
+                    ->schema([
+                        \Filament\Infolists\Components\TextEntry::make('fieldSite.name')->label('Field Site'),
+                        \Filament\Infolists\Components\TextEntry::make('report_month')->date('F Y'),
+                        \Filament\Infolists\Components\TextEntry::make('status')->badge()
+                            ->color(fn (string $state): string => match ($state) {
+                                'draft' => 'gray',
+                                'submitted' => 'warning',
+                                'validated' => 'success',
+                                'revision' => 'danger',
+                                default => 'gray',
+                            }),
+                    ])->columns(3),
+
+                \Filament\Infolists\Components\Section::make('Audit Timeline')
+                    ->description('Complete lifecycle of this record')
+                    ->icon('heroicon-o-clock')
+                    ->schema([
+                        \Filament\Infolists\Components\ViewEntry::make('audit_timeline')
+                            ->hiddenLabel()
+                            ->view('filament.infolists.audit-timeline')
+                    ])->columnSpanFull(),
             ]);
     }
 
@@ -282,6 +370,14 @@ class MonthlyHarvestResource extends Resource implements HasShieldPermissions
         }
 
         return $query;
+    }
+
+    public static function getWidgets(): array
+    {
+        return [
+            // \App\Filament\Resources\MonthlyHarvestResource\Widgets\HarvestForecastWidget::class,
+            // \App\Filament\Resources\MonthlyHarvestResource\Widgets\MonthlyProductionChart::class,
+        ];
     }
 
     public static function getRelations(): array

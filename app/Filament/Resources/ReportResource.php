@@ -21,6 +21,11 @@ class ReportResource extends Resource
     protected static ?string $navigationGroup = 'Field Data';
     protected static ?int $navigationSort = 20;
 
+    public static function shouldRegisterNavigation(): bool
+    {
+        return false;
+    }
+
     public static function form(Form $form): Form
     {
         return $form
@@ -31,7 +36,7 @@ class ReportResource extends Resource
                 Forms\Components\TextInput::make('report_type')
                     ->required(),
                 Forms\Components\Select::make('field_site_id')
-                    ->relationship('fieldSite', 'site_name')
+                    ->relationship('fieldSite', 'name')
                     ->searchable()
                     ->preload()
                     ->native(false),
@@ -48,7 +53,7 @@ class ReportResource extends Resource
             ->columns([
                 Tables\Columns\TextColumn::make('report_type')
                     ->searchable(),
-                Tables\Columns\TextColumn::make('fieldSite.site_name')
+                Tables\Columns\TextColumn::make('fieldSite.name')
                     ->label('Field Site')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('title')

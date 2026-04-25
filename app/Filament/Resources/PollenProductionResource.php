@@ -82,6 +82,8 @@ class PollenProductionResource extends Resource implements HasShieldPermissions
                                             $set('pollen_variety', $latest->pollen_variety);
                                             $set('ending_balance_prev', $latest->ending_balance);
                                             
+                                            self::recalculatePollen($get, $set);
+                                            
                                             \Filament\Notifications\Notification::make()->success()->title('Loaded from previous record.')->send();
                                         })
                                 ]),
@@ -110,14 +112,16 @@ class PollenProductionResource extends Resource implements HasShieldPermissions
                                 ->label('Ending Balance (Last Month)')
                                 ->numeric()
                                 ->maxLength(50)
+                                ->live(onBlur: true)
+                                ->afterStateUpdated(fn (Forms\Get $get, Forms\Set $set) => self::recalculatePollen($get, $set))
                                 ->columnSpan(1),
                         ]),
+                    ])
+                    ->columns(1),
 
-                        Forms\Components\Placeholder::make('divider_1')
-                            ->hiddenLabel()
-                            ->content(new \Illuminate\Support\HtmlString('<hr class="border-gray-200 dark:border-gray-700"><h3 class="text-base font-medium text-gray-900 dark:text-white mt-4">Pollens Received from Other Center</h3>'))
-                            ->columnSpanFull(),
-
+                Forms\Components\Section::make('Pollens Received from Other Center')
+                    ->icon('heroicon-o-truck')
+                    ->schema([
                         Forms\Components\Grid::make(3)->schema([
                             Forms\Components\TextInput::make('pollen_source')
                                 ->label('Source')
@@ -129,37 +133,53 @@ class PollenProductionResource extends Resource implements HasShieldPermissions
                             Forms\Components\TextInput::make('pollens_received')
                                 ->label('Amount of Pollens')
                                 ->numeric()
-                                ->maxLength(50),
+                                ->maxLength(50)
+                                ->live(onBlur: true)
+                                ->afterStateUpdated(fn (Forms\Get $get, Forms\Set $set) => self::recalculatePollen($get, $set)),
                         ]),
+                    ])
+                    ->columns(1),
 
-                        Forms\Components\Placeholder::make('divider_2')
-                            ->hiddenLabel()
-                            ->content(new \Illuminate\Support\HtmlString('<hr class="border-gray-200 dark:border-gray-700"><h3 class="text-base font-medium text-gray-900 dark:text-white mt-4">Pollen Utilization (grams per Week)</h3>'))
-                            ->columnSpanFull(),
-
+                Forms\Components\Section::make('Pollen Utilization (grams per Week)')
+                    ->icon('heroicon-o-chart-bar')
+                    ->schema([
                         Forms\Components\Grid::make(6)->schema([
-                            Forms\Components\TextInput::make('week1')->label('Week 1')->numeric()->maxLength(20),
-                            Forms\Components\TextInput::make('week2')->label('Week 2')->numeric()->maxLength(20),
-                            Forms\Components\TextInput::make('week3')->label('Week 3')->numeric()->maxLength(20),
-                            Forms\Components\TextInput::make('week4')->label('Week 4')->numeric()->maxLength(20),
-                            Forms\Components\TextInput::make('week5')->label('Week 5')->numeric()->maxLength(20),
+                            Forms\Components\TextInput::make('week1')->label('Week 1')->numeric()->maxLength(20)
+                                ->live(onBlur: true)
+                                ->afterStateUpdated(fn (Forms\Get $get, Forms\Set $set) => self::recalculatePollen($get, $set)),
+                            Forms\Components\TextInput::make('week2')->label('Week 2')->numeric()->maxLength(20)
+                                ->live(onBlur: true)
+                                ->afterStateUpdated(fn (Forms\Get $get, Forms\Set $set) => self::recalculatePollen($get, $set)),
+                            Forms\Components\TextInput::make('week3')->label('Week 3')->numeric()->maxLength(20)
+                                ->live(onBlur: true)
+                                ->afterStateUpdated(fn (Forms\Get $get, Forms\Set $set) => self::recalculatePollen($get, $set)),
+                            Forms\Components\TextInput::make('week4')->label('Week 4')->numeric()->maxLength(20)
+                                ->live(onBlur: true)
+                                ->afterStateUpdated(fn (Forms\Get $get, Forms\Set $set) => self::recalculatePollen($get, $set)),
+                            Forms\Components\TextInput::make('week5')->label('Week 5')->numeric()->maxLength(20)
+                                ->live(onBlur: true)
+                                ->afterStateUpdated(fn (Forms\Get $get, Forms\Set $set) => self::recalculatePollen($get, $set)),
                             Forms\Components\TextInput::make('total_utilization')
                                 ->label('Total Utilization')
                                 ->numeric()
-                                ->maxLength(20),
+                                ->readOnly()
+                                ->dehydrated()
+                                ->helperText('Auto-computed: Sum of Week 1–5'),
                         ]),
+                    ])
+                    ->columns(1),
 
-                        Forms\Components\Placeholder::make('divider_3')
-                            ->hiddenLabel()
-                            ->content(new \Illuminate\Support\HtmlString('<hr class="border-gray-200 dark:border-gray-700">'))
-                            ->columnSpanFull(),
-
+                Forms\Components\Section::make('Summary & Remarks')
+                    ->icon('heroicon-o-document-text')
+                    ->schema([
                         Forms\Components\Grid::make(3)->schema([
                             Forms\Components\Grid::make(1)->schema([
                                 Forms\Components\TextInput::make('ending_balance')
                                     ->label('Ending Balance')
                                     ->numeric()
-                                    ->maxLength(50),
+                                    ->readOnly()
+                                    ->dehydrated()
+                                    ->helperText('Auto-computed: Previous Balance + Received − Utilization'),
                             ])->columnSpan(1),
                             Forms\Components\Textarea::make('remarks')
                                 ->label('Remarks')
@@ -169,6 +189,20 @@ class PollenProductionResource extends Resource implements HasShieldPermissions
                     ])
                     ->columns(1),
             ]);
+    }
+
+    protected static function recalculatePollen(Forms\Get $get, Forms\Set $set): void
+    {
+        $weeks = collect(['week1', 'week2', 'week3', 'week4', 'week5'])
+            ->map(fn ($field) => (float) ($get($field) ?? 0))
+            ->sum();
+
+        $set('total_utilization', $weeks);
+
+        $prevBalance = (float) ($get('ending_balance_prev') ?? 0);
+        $received = (float) ($get('pollens_received') ?? 0);
+
+        $set('ending_balance', $prevBalance + $received - $weeks);
     }
 
     public static function table(Table $table): Table
@@ -184,21 +218,52 @@ class PollenProductionResource extends Resource implements HasShieldPermissions
                 Tables\Columns\TextColumn::make('pollen_variety')
                     ->label('Variety')
                     ->searchable(),
-                Tables\Columns\TextColumn::make('ending_balance_prev')
-                    ->label('Prev Balance')
-                    ->toggleable(),
-                Tables\Columns\TextColumn::make('pollens_received')
-                    ->label('Received'),
-                Tables\Columns\TextColumn::make('total_utilization')
-                    ->label('Total Utilized'),
                 Tables\Columns\TextColumn::make('ending_balance')
-                    ->label('End Balance'),
+                    ->label('Balance (g)')
+                    ->weight('bold')
+                    ->sortable(),
+                // Tables\Columns\TextColumn::make('viability_status')
+                //     ->label('Viability')
+                //     ->badge()
+                //     ->color(fn (string $state): string => match ($state) {
+                //         'fresh' => 'success',
+                //         'at_risk' => 'warning',
+                //         'expired' => 'danger',
+                //         default => 'gray',
+                //     })
+                //     ->formatStateUsing(fn (string $state): string => match ($state) {
+                //         'fresh' => 'Fresh (≤30d)',
+                //         'at_risk' => 'At Risk (31–60d)',
+                //         'expired' => 'Expired (>60d)',
+                //         default => 'Unknown',
+                //     }),
+                // Tables\Columns\TextColumn::make('pollen_age_days')
+                //     ->label('Age (Days)')
+                //     ->numeric()
+                //     ->sortable()
+                //     ->toggleable(isToggledHiddenByDefault: true),
                 self::getStatusColumn(),
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('field_site_id')
                     ->label('Field Site')
                     ->relationship('fieldSite', 'name'),
+                // Tables\Filters\SelectFilter::make('viability')
+                //     ->label('Viability Status')
+                //     ->options([
+                //         'fresh' => 'Fresh (≤30d)',
+                //         'at_risk' => 'At Risk (31–60d)',
+                //         'expired' => 'Expired (>60d)',
+                //     ])
+                //     ->query(function (Builder $query, array $data) {
+                //         if (empty($data['value'])) return $query;
+                //         return match ($data['value']) {
+                //             'fresh' => $query->fresh(),
+                //             'at_risk' => $query->atRisk(),
+                //             'expired' => $query->expired(),
+                //             default => $query,
+                //         };
+                //     }),
                 Tables\Filters\Filter::make('report_year')
                     ->form([
                         Forms\Components\Select::make('year')
@@ -232,8 +297,54 @@ class PollenProductionResource extends Resource implements HasShieldPermissions
                     ->label('Formatted Export (Excel)')
                     ->icon('heroicon-o-document-chart-bar')
                     ->color('success')
-                    ->action(function (Tables\Table $table) {
-                        $records = $table->getQuery()->get();
+                    ->form([
+                        Forms\Components\Select::make('year')
+                            ->options(fn () => collect(range(now()->year, 2024, -1))
+                                ->mapWithKeys(fn ($y) => [$y => $y]))
+                            ->default(now()->year)
+                            ->required(),
+                        Forms\Components\Select::make('month')
+                            ->options([
+                                1 => 'January', 2 => 'February', 3 => 'March',
+                                4 => 'April', 5 => 'May', 6 => 'June',
+                                7 => 'July', 8 => 'August', 9 => 'September',
+                                10 => 'October', 11 => 'November', 12 => 'December',
+                            ])
+                            ->nullable(),
+                        Forms\Components\Select::make('field_site_id')
+                            ->label('Field Site')
+                            ->relationship('fieldSite', 'name')
+                            ->nullable()
+                            ->searchable()
+                            ->preload()
+                            ->hidden(fn () => auth()->user()?->isSupervisor())
+                            ->default(fn () => auth()->user()?->isSupervisor() ? auth()->user()->field_site_id : null),
+                    ])
+                    ->action(function (array $data) {
+                        $query = \App\Models\PollenProduction::query();
+                        
+                        $query->whereYear('report_month', $data['year']);
+                        
+                        if ($data['month']) {
+                            $query->whereMonth('report_month', $data['month']);
+                        }
+                        
+                        if (auth()->user()?->isSupervisor()) {
+                            $query->where('field_site_id', auth()->user()->field_site_id);
+                        } elseif ($data['field_site_id']) {
+                            $query->where('field_site_id', $data['field_site_id']);
+                        }
+                        
+                        $records = $query->with(['fieldSite'])->get();
+                        
+                        if ($records->isEmpty()) {
+                            \Filament\Notifications\Notification::make()
+                                ->warning()
+                                ->title('No records found for the selected filters.')
+                                ->send();
+                            return;
+                        }
+
                         return (new \App\Exports\PollenProductionExport($records))->export();
                     }),
             ]);
@@ -246,6 +357,13 @@ class PollenProductionResource extends Resource implements HasShieldPermissions
             $query->where('field_site_id', auth()->user()->field_site_id);
         }
         return $query;
+    }
+
+    public static function getWidgets(): array
+    {
+        return [
+            // \App\Filament\Resources\PollenProductionResource\Widgets\PollenStockWidget::class,
+        ];
     }
 
     public static function getPages(): array

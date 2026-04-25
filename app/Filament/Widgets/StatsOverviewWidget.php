@@ -43,6 +43,7 @@ class StatsOverviewWidget extends BaseWidget
         $terminalQuery = NurseryOperation::query()->where('report_type', 'terminal');
         $pollenQuery = PollenProduction::query();
         $recordQuery = HybridizationRecord::query();
+        $readyQuery = HybridizationRecord::query()->readyForHarvest();
 
         if ($isSupervisor && $siteId) {
             $distributionQuery->where('field_site_id', $siteId);
@@ -51,9 +52,18 @@ class StatsOverviewWidget extends BaseWidget
             $terminalQuery->where('field_site_id', $siteId);
             $pollenQuery->where('field_site_id', $siteId);
             $recordQuery->where('field_site_id', $siteId);
+            $readyQuery->where('field_site_id', $siteId);
         }
 
+        $readyCount = $readyQuery->count();
+
         $stats = [
+            Stat::make('Ready for Harvest', $readyCount)
+                ->description($readyCount > 0 ? 'Need attention now' : 'All on track')
+                ->icon('heroicon-o-calendar-days')
+                ->color($readyCount > 0 ? 'danger' : 'success')
+                ->extraAttributes(['class' => 'stat-gradient-6']),
+
             Stat::make('Hybrid Dist.', $distributionQuery->count())
                 ->description('Farmer distribution records')
                 ->icon('heroicon-o-truck')

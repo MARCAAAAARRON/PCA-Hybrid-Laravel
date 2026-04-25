@@ -37,7 +37,7 @@ class RecentActivityWidget extends Widget
                 'type' => 'Harvest',
                 'date' => $item->created_at,
                 'title' => ($item->fieldSite?->name ?? 'Unknown Site') . " — " . ($item->report_month ? $item->report_month->format('M Y') : 'N/A'),
-                'desc' => "Produced " . ($item->total_seednuts_produced ?? 0) . " seednuts",
+                'desc' => "Produced " . ($item->total_production ?? 0) . " seednuts",
                 'user' => 'System',
                 'color' => 'success',
             ]);
@@ -67,8 +67,8 @@ class RecentActivityWidget extends Widget
             ->map(fn($item) => [
                 'type' => 'Distribution',
                 'date' => $item->created_at,
-                'title' => ($item->fieldSite?->name ?? 'Unknown Site') . " — " . ($item->farmer_name ?? 'General Distribution'),
-                'desc' => "Distributed " . ($item->total_seedlings_distributed ?? 0) . " seedlings",
+                'title' => ($item->fieldSite?->name ?? 'Unknown Site') . " — " . ($item->full_name ?: 'General Distribution'),
+                'desc' => "Distributed " . ($item->seedlings_received ?? 0) . " seedlings",
                 'user' => 'System',
                 'color' => 'info',
             ]);
@@ -89,6 +89,6 @@ class RecentActivityWidget extends Widget
             ]);
         $activities = $activities->concat($pollen);
 
-        return $activities->sortByDesc('date')->take(6);
+        return $activities->sortByDesc('date')->take(2);
     }
 }

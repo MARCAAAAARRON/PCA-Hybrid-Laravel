@@ -9,4 +9,12 @@ class ListMonthlyHarvests extends ListRecords
     {
         return [\Filament\Actions\CreateAction::make()];
     }
+
+    protected function getHeaderWidgets(): array
+    {
+        return [
+            // MonthlyHarvestResource\Widgets\HarvestForecastWidget::class,
+            // MonthlyHarvestResource\Widgets\MonthlyProductionChart::class,
+        ];
+    }
 }

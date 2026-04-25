@@ -5,14 +5,22 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Builder;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 use App\Models\Scopes\FieldSiteScope;
 use App\Models\Traits\HasApprovalWorkflow;
+use Illuminate\Database\Eloquent\Casts\Attribute;
+use Carbon\Carbon;
 
 class HybridizationRecord extends Model implements HasMedia
 {
     use InteractsWithMedia, HasApprovalWorkflow;
+
+    /**
+     * Average months from planting/pollination to harvest readiness.
+     */
+    public const HARVEST_LEAD_MONTHS = 10;
 
     protected static function booted(): void
     {
@@ -59,6 +67,85 @@ class HybridizationRecord extends Model implements HasMedia
         return [
             'date_planted' => 'date',
         ];
+    }
+
+    // ─── Harvest Forecasting ────────────────────────────────────
+
+    /**
+     * Estimated harvest date = date_planted + HARVEST_LEAD_MONTHS.
+     */
+    protected function estimatedHarvestDate(): Attribute
+    {
+        return Attribute::get(function () {
+            if (! $this->date_planted) {
+                return null;
+            }
+            return $this->date_planted->copy()->addMonths(self::HARVEST_LEAD_MONTHS);
+        });
+    }
+
+    /**
+     * Days remaining until estimated harvest (negative = overdue).
+     */
+    protected function daysUntilHarvest(): Attribute
+    {
+        return Attribute::get(function () {
+            if (! $this->estimated_harvest_date) {
+                return null;
+            }
+            return (int) now()->startOfDay()->diffInDays($this->estimated_harvest_date, false);
+        });
+    }
+
+    /**
+     * Human-readable harvest status: overdue | ready | upcoming | growing
+     */
+    protected function harvestStatus(): Attribute
+    {
+        return Attribute::get(function () {
+            $days = $this->days_until_harvest;
+            if ($days === null) return null;
+            if ($this->growth_status === 'harvested') return 'harvested';
+            if ($days < 0) return 'overdue';
+            if ($days <= 7) return 'ready';
+            if ($days <= 30) return 'upcoming';
+            return 'growing';
+        });
+    }
+
+    /**
+     * Scope: records ready for harvest now (overdue or within 7 days), not yet harvested.
+     */
+    public function scopeReadyForHarvest(Builder $query): Builder
+    {
+        $cutoff = now()->addDays(7)->toDateString();
+        $months = '+' . self::HARVEST_LEAD_MONTHS . ' months';
+        return $query
+            ->where('growth_status', '!=', 'harvested')
+            ->whereNotNull('date_planted')
+            ->whereRaw("date(date_planted, ?) <= ?", [$months, $cutoff]);
+    }
+
+    /**
+     * Scope: records with harvest within the next 30 days, not yet harvested.
+     */
+    public function scopeUpcomingHarvest(Builder $query): Builder
+    {
+        $from = now()->toDateString();
+        $to   = now()->addDays(30)->toDateString();
+        $months = '+' . self::HARVEST_LEAD_MONTHS . ' months';
+        return $query
+            ->where('growth_status', '!=', 'harvested')
+            ->whereNotNull('date_planted')
+            ->whereRaw("date(date_planted, ?) BETWEEN ? AND ?", [$months, $from, $to]);
+    }
+
+    /**
+     * Scope: not-yet-harvested records, sorted soonest first.
+     */
+    public function scopeNotHarvested(Builder $query): Builder
+    {
+        return $query->where('growth_status', '!=', 'harvested');
     }
 
     public function fieldSite(): BelongsTo

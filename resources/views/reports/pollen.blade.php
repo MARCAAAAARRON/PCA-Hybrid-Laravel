@@ -62,18 +62,56 @@
         </tbody>
     </table>
 
-    <table style="width:100%; margin-top:40px; border:none;">
-        <tr>
-            <td style="width:33%; text-align:center; border:none; padding-top:30px;">
-                <hr style="width:80%;"><strong>Prepared by</strong>
-            </td>
-            <td style="width:33%; text-align:center; border:none; padding-top:30px;">
-                <hr style="width:80%;"><strong>Reviewed by</strong>
-            </td>
-            <td style="width:33%; text-align:center; border:none; padding-top:30px;">
-                <hr style="width:80%;"><strong>Noted by</strong>
-            </td>
-        </tr>
-    </table>
+    <style>
+        .signature-section { margin-top: 50px; page-break-inside: avoid; }
+        .signature-table { width: 100%; border: none; }
+        .signature-table td { width: 33%; text-align: center; border: none; vertical-align: bottom; }
+        .signature-box { position: relative; height: 60px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; }
+        .signature-img { height: 40px; margin-bottom: -10px; }
+        .signature-line { width: 80%; border: none; border-bottom: 1px solid #000; margin: 0 auto; }
+        .signature-label { font-size: 8px; font-weight: bold; margin-top: 4px; display: block; }
+        .signatory-name { font-size: 9px; font-weight: bold; text-transform: uppercase; }
+        .signatory-role { font-size: 7px; color: #444; }
+    </style>
+
+    <div class="signature-section">
+        <table class="signature-table">
+            <tr>
+                <td>
+                    <div class="signature-box">
+                        @if($signatories['prepared']?->signature_image)
+                            <img src="{{ Storage::disk('cloudinary')->url($signatories['prepared']->signature_image) }}" class="signature-img">
+                        @endif
+                        <div class="signatory-name">{{ $signatories['prepared']?->name ?? '________________' }}</div>
+                        <div class="signature-line"></div>
+                        <span class="signature-label">Prepared by</span>
+                        <div class="signatory-role">{{ $signatories['prepared']?->role_title ?? 'Project Staff' }}</div>
+                    </div>
+                </td>
+                <td>
+                    <div class="signature-box">
+                        @if($signatories['reviewed']?->signature_image)
+                            <img src="{{ Storage::disk('cloudinary')->url($signatories['reviewed']->signature_image) }}" class="signature-img">
+                        @endif
+                        <div class="signatory-name">{{ $signatories['reviewed']?->name ?? '________________' }}</div>
+                        <div class="signature-line"></div>
+                        <span class="signature-label">Reviewed by</span>
+                        <div class="signatory-role">{{ $signatories['reviewed']?->role_title ?? 'Technical Staff' }}</div>
+                    </div>
+                </td>
+                <td>
+                    <div class="signature-box">
+                        @if($signatories['noted']?->signature_image)
+                            <img src="{{ Storage::disk('cloudinary')->url($signatories['noted']->signature_image) }}" class="signature-img">
+                        @endif
+                        <div class="signatory-name">{{ $signatories['noted']?->name ?? '________________' }}</div>
+                        <div class="signature-line"></div>
+                        <span class="signature-label">Noted by</span>
+                        <div class="signatory-role">{{ $signatories['noted']?->role_title ?? 'Division Chief' }}</div>
+                    </div>
+                </td>
+            </tr>
+        </table>
+    </div>
 </body>
 </html>

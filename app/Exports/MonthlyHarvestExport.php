@@ -17,35 +17,63 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 class MonthlyHarvestExport
 {
     protected array $records;
-    protected $site;
-    protected Carbon $asOfDate;
 
     public function __construct(iterable $records)
     {
         $this->records = is_array($records) ? $records : $records->all();
-        $this->site = count($this->records) > 0 ? $this->records[0]->fieldSite : null;
-        $this->asOfDate = now();
     }
 
     public function export()
     {
         $spreadsheet = new Spreadsheet();
-        $sheet = $spreadsheet->getActiveSheet();
-        $sheet->setTitle('Monthly Harvest');
+        $spreadsheet->removeSheetByIndex(0); // Remove default sheet
 
-        $this->setupPage($sheet);
-        $this->drawHeader($sheet);
-        $this->drawTableHeaders($sheet);
-        $currentRow = $this->drawData($sheet);
-        $this->drawFooter($sheet, $currentRow + 2);
+        // Group records by FieldSite
+        $sites = [];
+        foreach ($this->records as $rec) {
+            $siteName = $rec->fieldSite?->name ?? 'Unknown Site';
+            $siteId = $rec->field_site_id ?? 0;
+            if (!isset($sites[$siteId])) {
+                $sites[$siteId] = [
+                    'name' => $siteName,
+                    'site' => $rec->fieldSite,
+                    'records' => [],
+                ];
+            }
+            $sites[$siteId]['records'][] = $rec;
+        }
+
+        if (empty($sites)) {
+            $sheet = $spreadsheet->createSheet();
+            $sheet->setTitle('No Data');
+            $sheet->setCellValue('A1', 'No records found.');
+        } else {
+            foreach ($sites as $siteId => $siteData) {
+                $sheet = $spreadsheet->createSheet();
+                $sheet->setTitle(substr($siteData['name'], 0, 31));
+                $this->buildSheet($sheet, $siteData['records'], $siteData['site']);
+            }
+        }
 
         $writer = new Xlsx($spreadsheet);
-        
-        $fileName = 'Monthly_Harvest_' . str_replace(' ', '_', $this->site?->name ?? 'Export') . '_' . now()->format('Y-m-d') . '.xlsx';
+        $fileName = 'Monthly_Harvest_' . now()->format('Y-m-d') . '.xlsx';
         $tempFile = tempnam(sys_get_temp_dir(), 'export');
         $writer->save($tempFile);
 
         return response()->download($tempFile, $fileName)->deleteFileAfterSend(true);
+    }
+
+    protected function buildSheet(Worksheet $sheet, array $records, $site)
+    {
+        $asOfDate = count($records) > 0 && $records[0]->report_month
+            ? Carbon::parse($records[0]->report_month)
+            : now();
+
+        $this->setupPage($sheet);
+        $this->drawHeader($sheet, $asOfDate);
+        $this->drawTableHeaders($sheet);
+        $currentRow = $this->drawData($sheet, $records);
+        $this->drawFooter($sheet, $currentRow + 2, $site, $records);
     }
 
     protected function setupPage(Worksheet $sheet)
@@ -56,7 +84,7 @@ class MonthlyHarvestExport
         $sheet->getPageSetup()->setFitToHeight(0);
     }
 
-    protected function drawHeader(Worksheet $sheet)
+    protected function drawHeader(Worksheet $sheet, Carbon $asOfDate)
     {
         // Logo
         $logoPath = public_path('images/PCA_DA_Logo.png');
@@ -86,7 +114,7 @@ class MonthlyHarvestExport
         $sheet->getStyle('A3')->getFont()->setSize(10);
         $sheet->getStyle('A3')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
-        $asOfStr = 'as of ' . $this->asOfDate->format('F d, Y');
+        $asOfStr = 'For the month of ' . $asOfDate->format('F Y');
         $sheet->mergeCells("A4:{$mergeEnd}4");
         $sheet->setCellValue('A4', $asOfStr);
         $sheet->getStyle('A4')->getFont()->setSize(10)->setUnderline(true);
@@ -156,13 +184,13 @@ class MonthlyHarvestExport
         $sheet->mergeCells('U5:U6');
     }
 
-    protected function drawData(Worksheet $sheet)
+    protected function drawData(Worksheet $sheet, array $records)
     {
         $row = 7;
         
         // Group by Farm (location + farm_name)
         $farms = [];
-        foreach ($this->records as $rec) {
+        foreach ($records as $rec) {
             $key = ($rec->location ?? '') . '|' . ($rec->farm_name ?? '');
             if (!isset($farms[$key])) {
                 $farms[$key] = [
@@ -190,9 +218,7 @@ class MonthlyHarvestExport
             }
         }
 
-        $grandTotalArea = 0;
-        $grandTotalPalms = 0;
-        $monthTotals = array_fill(1, 12, 0);
+        $firstDataRow = $row;
 
         foreach ($farms as $farm) {
             $firstVarRow = $row;
@@ -203,27 +229,22 @@ class MonthlyHarvestExport
                     $sheet->setCellValue('C' . $row, $farm['area_ha']);
                     $sheet->setCellValue('D' . $row, $farm['age_of_palms']);
                     $sheet->setCellValue('E' . $row, $farm['num_hybridized_palms']);
-                    
-                    $grandTotalArea += (float)$farm['area_ha'];
-                    $grandTotalPalms += (int)$farm['num_hybridized_palms'];
                 }
                 
                 $sheet->setCellValue('F' . $row, $v['variety']);
                 $sheet->setCellValue('G' . $row, $v['seednuts_type']);
                 
-                $varTotal = 0;
                 $col = 'H';
                 for($m = 1; $m <= 12; $m++) {
                     $count = $v['months'][$m];
                     if ($count > 0) {
                         $sheet->setCellValue($col . $row, $count);
-                        $monthTotals[$m] += $count;
-                        $varTotal += $count;
                     }
                     $col++;
                 }
                 
-                $sheet->setCellValue('T' . $row, $varTotal);
+                // COMPUTATIONAL: Row total = SUM(H:S) for this row
+                $sheet->setCellValue('T' . $row, "=SUM(H$row:S$row)");
                 $sheet->setCellValue('U' . $row, $v['remarks']);
                 
                 $this->applyRowBorder($sheet, $row);
@@ -231,21 +252,21 @@ class MonthlyHarvestExport
             }
         }
 
-        // Total Row
+        $lastDataRow = $row - 1;
+
+        // Total Row — all formulas
         $sheet->setCellValue('B' . $row, 'TOTAL');
-        $sheet->setCellValue('C' . $row, $grandTotalArea);
-        $sheet->setCellValue('E' . $row, $grandTotalPalms);
+        // COMPUTATIONAL: SUM of area and palms
+        $sheet->setCellValue('C' . $row, "=SUM(C$firstDataRow:C$lastDataRow)");
+        $sheet->setCellValue('E' . $row, "=SUM(E$firstDataRow:E$lastDataRow)");
         
+        // COMPUTATIONAL: Column totals for each month (H-S) and grand total (T)
         $col = 'H';
-        $finalGrandTotal = 0;
         for($m = 1; $m <= 12; $m++) {
-            if ($monthTotals[$m] > 0) {
-                $sheet->setCellValue($col . $row, $monthTotals[$m]);
-                $finalGrandTotal += $monthTotals[$m];
-            }
+            $sheet->setCellValue($col . $row, "=SUM({$col}{$firstDataRow}:{$col}{$lastDataRow})");
             $col++;
         }
-        $sheet->setCellValue('T' . $row, $finalGrandTotal);
+        $sheet->setCellValue('T' . $row, "=SUM(T$firstDataRow:T$lastDataRow)");
         
         $sheet->getStyle("A$row:U$row")->getFont()->setBold(true);
         $this->applyRowBorder($sheet, $row);
@@ -255,23 +276,29 @@ class MonthlyHarvestExport
         return $row;
     }
 
-    protected function drawFooter(Worksheet $sheet, $startRow)
+    protected function drawFooter(Worksheet $sheet, $startRow, $site, array $records)
     {
         $row = $startRow;
         
-        $sheet->setCellValue('A' . $row, 'Prepared by:');
-        $sheet->setCellValue('K' . $row, 'Reviewed by:');
-        $sheet->setCellValue('S' . $row, 'Noted by:');
+        // Resolve signatory labels from FieldSite overrides
+        $prepLabel = $site?->prepared_by_label ?: 'Prepared by:';
+        $revLabel = $site?->reviewed_by_label ?: 'Reviewed by:';
+        $noteLabel = $site?->noted_by_label ?: 'Noted by:';
+        
+        $sheet->setCellValue('A' . $row, $prepLabel);
+        $sheet->setCellValue('K' . $row, $revLabel);
+        $sheet->setCellValue('S' . $row, $noteLabel);
+        
+        $signatureRow = $row + 1;
         
         $row += 4;
         
-        // Placeholders or dynamic names
-        $prepName = auth()->user()->name ?? 'ROSITA J. MIASCO';
-        $prepTitle = auth()->user()->role ?? 'COS/Agriculturist';
+        // Resolve signatories: FieldSite overrides → Record approval users → Blank
+        $signatories = $this->resolveSignatories($site, $records);
         
-        $sheet->setCellValue('A' . $row, strtoupper($prepName));
-        $sheet->setCellValue('K' . $row, 'ALVIN B. CUBIBA');
-        $sheet->setCellValue('S' . $row, 'JOVENCIO G. FEUDILOA');
+        $sheet->setCellValue('A' . $row, $signatories['prepared']['name']);
+        $sheet->setCellValue('K' . $row, $signatories['reviewed']['name']);
+        $sheet->setCellValue('S' . $row, $signatories['noted']['name']);
         
         $sheet->getStyle("A$row:U$row")->getFont()->setBold(true);
         $sheet->getStyle("A$row")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
@@ -279,13 +306,73 @@ class MonthlyHarvestExport
         $sheet->getStyle("S$row")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
         
         $row++;
-        $sheet->setCellValue('A' . $row, $prepTitle);
-        $sheet->setCellValue('K' . $row, 'Senior Agriculturist');
-        $sheet->setCellValue('S' . $row, 'PCDM/Division Chief I');
+        $sheet->setCellValue('A' . $row, $signatories['prepared']['title']);
+        $sheet->setCellValue('K' . $row, $signatories['reviewed']['title']);
+        $sheet->setCellValue('S' . $row, $signatories['noted']['title']);
         
         $sheet->getStyle("A$row")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
         $sheet->getStyle("K$row")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
         $sheet->getStyle("S$row")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+        // Draw signature images
+        $this->addSignatures($sheet, $signatureRow, $signatories, ['prepared' => 'A', 'reviewed' => 'K', 'noted' => 'S']);
+    }
+
+    /**
+     * Resolve signatories following the Django _add_footer() priority:
+     * 1. FieldSite overrides (prepared_by_name/title, etc.)
+     * 2. Record approval workflow users (preparedByUser, reviewedByUser, notedByUser)
+     * 3. Blank placeholder
+     */
+    protected function resolveSignatories($site, array $records): array
+    {
+        // Find approval users from records (check all records, take the most recent signatory)
+        $preparedUser = null;
+        $reviewedUser = null;
+        $notedUser = null;
+
+        foreach (array_reverse($records) as $rec) {
+            if (!$preparedUser && $rec->preparedByUser) $preparedUser = $rec->preparedByUser;
+            if (!$reviewedUser && $rec->reviewedByUser) $reviewedUser = $rec->reviewedByUser;
+            if (!$notedUser && $rec->notedByUser) $notedUser = $rec->notedByUser;
+        }
+
+        return [
+            'prepared' => $this->resolveOneSignatory($site, 'prepared', $preparedUser, 'COS/Agriculturist'),
+            'reviewed' => $this->resolveOneSignatory($site, 'reviewed', $reviewedUser, 'Senior Agriculturist'),
+            'noted' => $this->resolveOneSignatory($site, 'noted', $notedUser, 'PCDM/Division Chief I'),
+        ];
+    }
+
+    protected function resolveOneSignatory($site, string $role, $user, string $defaultTitle): array
+    {
+        $nameField = "{$role}_by_name";
+        $titleField = "{$role}_by_title";
+
+        // 1. FieldSite override
+        if ($site && !empty($site->$nameField)) {
+            return [
+                'name' => strtoupper($site->$nameField),
+                'title' => $site->$titleField ?? $defaultTitle,
+                'user' => null, // No user object for signature image
+            ];
+        }
+
+        // 2. Record approval user
+        if ($user) {
+            return [
+                'name' => strtoupper($user->name),
+                'title' => $user->role_title ?? $defaultTitle,
+                'user' => $user,
+            ];
+        }
+
+        // 3. Blank placeholder
+        return [
+            'name' => '_______________________',
+            'title' => $defaultTitle,
+            'user' => null,
+        ];
     }
 
     protected function applyRowBorder(Worksheet $sheet, $row)
@@ -297,6 +384,32 @@ class MonthlyHarvestExport
     {
         foreach (range('A', 'U') as $columnID) {
             $sheet->getColumnDimension($columnID)->setAutoSize(true);
+        }
+    }
+
+    protected function addSignatures(Worksheet $sheet, int $row, array $signatories, array $cols)
+    {
+        foreach ($cols as $key => $col) {
+            $user = $signatories[$key]['user'] ?? null;
+            if ($user && $user->signature_image) {
+                try {
+                    $url = \Illuminate\Support\Facades\Storage::disk('cloudinary')->url($user->signature_image);
+                    $imgData = @file_get_contents($url);
+                    if ($imgData) {
+                        $tmp = tempnam(sys_get_temp_dir(), 'sig');
+                        file_put_contents($tmp, $imgData);
+                        
+                        $drawing = new Drawing();
+                        $drawing->setPath($tmp);
+                        $drawing->setHeight(40);
+                        $drawing->setCoordinates($col . $row);
+                        $drawing->setOffsetX(45);
+                        $drawing->setWorksheet($sheet);
+                    }
+                } catch (\Exception $e) {
+                    \Illuminate\Support\Facades\Log::error("Excel Signature Error: " . $e->getMessage());
+                }
+            }
         }
     }
 }

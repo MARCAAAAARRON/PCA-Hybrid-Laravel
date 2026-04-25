@@ -11,6 +11,7 @@ class NurseryBatch extends Model
     protected $fillable = [
         'nursery_operation_id',
         'seednuts_harvested',
+        'culled_seednuts',
         'date_harvested',
         'date_received',
         'source_of_seednuts',
@@ -20,6 +21,7 @@ class NurseryBatch extends Model
     {
         return [
             'seednuts_harvested' => 'integer',
+            'culled_seednuts' => 'integer',
         ];
     }
 

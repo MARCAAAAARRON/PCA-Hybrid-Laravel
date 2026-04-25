@@ -25,6 +25,10 @@ class NurseryOperationResource extends Resource implements HasShieldPermissions
 
     protected static ?string $navigationLabel = 'Nursery Operations';
 
+    protected static ?string $modelLabel = 'Nursery Operation';
+
+    protected static ?string $pluralModelLabel = 'Nursery Operations';
+
     protected static ?int $navigationSort = 4;
 
     public static function getPermissionPrefixes(): array
@@ -144,6 +148,7 @@ class NurseryOperationResource extends Resource implements HasShieldPermissions
                     ])->columns(3),
 
                 Forms\Components\Section::make('Proponent')
+                    ->icon('heroicon-o-users')
                     ->schema([
                         Forms\Components\TextInput::make('proponent_entity')
                             ->label('Entity Name')
@@ -161,6 +166,7 @@ class NurseryOperationResource extends Resource implements HasShieldPermissions
 
                 Forms\Components\Section::make('Seednut Batches / Varieties')
                     ->description('Add harvest batches and their varieties')
+                    ->icon('heroicon-o-rectangle-stack')
                     ->schema([
                         Forms\Components\Repeater::make('batches')
                             ->relationship()
@@ -193,6 +199,8 @@ class NurseryOperationResource extends Resource implements HasShieldPermissions
                                         Forms\Components\TextInput::make('seednuts_sown')
                                             ->label('No. Sown')
                                             ->numeric()
+                                            ->required()
+                                            ->minValue(0)
                                             ->default(0),
                                         Forms\Components\TextInput::make('date_sown')
                                             ->label('Date Sown')
@@ -201,26 +209,38 @@ class NurseryOperationResource extends Resource implements HasShieldPermissions
                                         Forms\Components\TextInput::make('seedlings_germinated')
                                             ->label('No. Germinated')
                                             ->numeric()
+                                            ->required()
+                                            ->minValue(0)
                                             ->default(0),
                                         Forms\Components\TextInput::make('ungerminated_seednuts')
                                             ->label('No. Ungerminated')
                                             ->numeric()
+                                            ->required()
+                                            ->minValue(0)
                                             ->default(0),
                                         Forms\Components\TextInput::make('culled_seedlings')
                                             ->label('No. Culled Seedlings')
                                             ->numeric()
+                                            ->required()
+                                            ->minValue(0)
                                             ->default(0),
                                         Forms\Components\TextInput::make('good_seedlings')
                                             ->label('Good Seedlings @ 1 ft')
                                             ->numeric()
+                                            ->required()
+                                            ->minValue(0)
                                             ->default(0),
                                         Forms\Components\TextInput::make('ready_to_plant')
                                             ->label('Ready to Plant (Polybagged)')
                                             ->numeric()
+                                            ->required()
+                                            ->minValue(0)
                                             ->default(0),
                                         Forms\Components\TextInput::make('seedlings_dispatched')
                                             ->label('Seedlings Dispatched')
                                             ->numeric()
+                                            ->required()
+                                            ->minValue(0)
                                             ->default(0),
                                         Forms\Components\TextInput::make('remarks')
                                             ->label('Remarks')
@@ -317,8 +337,54 @@ class NurseryOperationResource extends Resource implements HasShieldPermissions
                     ->label('Formatted Export (Excel)')
                     ->icon('heroicon-o-document-chart-bar')
                     ->color('success')
-                    ->action(function (Tables\Table $table) {
-                        $records = $table->getQuery()->with(['batches.varieties'])->get();
+                    ->form([
+                        Forms\Components\Select::make('year')
+                            ->options(fn () => collect(range(now()->year, 2024, -1))
+                                ->mapWithKeys(fn ($y) => [$y => $y]))
+                            ->default(now()->year)
+                            ->required(),
+                        Forms\Components\Select::make('month')
+                            ->options([
+                                1 => 'January', 2 => 'February', 3 => 'March',
+                                4 => 'April', 5 => 'May', 6 => 'June',
+                                7 => 'July', 8 => 'August', 9 => 'September',
+                                10 => 'October', 11 => 'November', 12 => 'December',
+                            ])
+                            ->nullable(),
+                        Forms\Components\Select::make('field_site_id')
+                            ->label('Field Site')
+                            ->relationship('fieldSite', 'name')
+                            ->nullable()
+                            ->searchable()
+                            ->preload()
+                            ->hidden(fn () => auth()->user()?->isSupervisor())
+                            ->default(fn () => auth()->user()?->isSupervisor() ? auth()->user()->field_site_id : null),
+                    ])
+                    ->action(function (array $data) {
+                        $query = \App\Models\NurseryOperation::query()->where('report_type', 'operation');
+                        
+                        $query->whereYear('report_month', $data['year']);
+                        
+                        if ($data['month']) {
+                            $query->whereMonth('report_month', $data['month']);
+                        }
+                        
+                        if (auth()->user()?->isSupervisor()) {
+                            $query->where('field_site_id', auth()->user()->field_site_id);
+                        } elseif ($data['field_site_id']) {
+                            $query->where('field_site_id', $data['field_site_id']);
+                        }
+                        
+                        $records = $query->with(['fieldSite', 'batches.varieties'])->get();
+                        
+                        if ($records->isEmpty()) {
+                            \Filament\Notifications\Notification::make()
+                                ->warning()
+                                ->title('No records found for the selected filters.')
+                                ->send();
+                            return;
+                        }
+
                         return (new \App\Exports\NurseryOperationExport($records))->export();
                     }),
             ]);

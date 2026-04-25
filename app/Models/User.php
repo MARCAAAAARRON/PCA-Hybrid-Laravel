@@ -132,6 +132,11 @@ class User extends Authenticatable implements FilamentUser, HasAvatar, MustVerif
         return self::ROLE_CHOICES[$this->role] ?? $this->role;
     }
 
+    public function getRoleTitleAttribute(): string
+    {
+        return self::ROLE_CHOICES[$this->role] ?? 'Project Staff';
+    }
+
     protected static function booted(): void
     {
         static::saving(function (User $user) {

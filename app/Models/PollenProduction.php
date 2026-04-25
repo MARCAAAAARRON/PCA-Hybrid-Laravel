@@ -6,10 +6,11 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use App\Models\Scopes\FieldSiteScope;
 use App\Models\Traits\HasApprovalWorkflow;
+use App\Models\Traits\NotifiesOnRecordCreation;
 
 class PollenProduction extends Model
 {
-    use HasApprovalWorkflow;
+    use HasApprovalWorkflow, NotifiesOnRecordCreation;
 
     protected static function booted(): void
     {
@@ -46,7 +47,57 @@ class PollenProduction extends Model
     {
         return [
             'report_month' => 'date',
+            'date_received' => 'date',
         ];
+    }
+
+    // ─── Pollen Viability & Health ──────────────────────────────
+
+    /**
+     * Calculate age of the pollen batch in days.
+     * Uses `date_received` if available; falls back to `report_month`.
+     */
+    protected function pollenAgeDays(): \Illuminate\Database\Eloquent\Casts\Attribute
+    {
+        return \Illuminate\Database\Eloquent\Casts\Attribute::get(function () {
+            $baseDate = $this->date_received ?? $this->report_month;
+            if (!$baseDate) return null;
+            return (int) now()->startOfDay()->diffInDays($baseDate, true);
+        });
+    }
+
+    /**
+     * Label: fresh (≤30d) | at_risk (31–60d) | expired (>60d)
+     */
+    protected function viabilityStatus(): \Illuminate\Database\Eloquent\Casts\Attribute
+    {
+        return \Illuminate\Database\Eloquent\Casts\Attribute::get(function () {
+            $age = $this->pollen_age_days;
+            if ($age === null) return 'unknown';
+            if ($age <= 30) return 'fresh';
+            if ($age <= 60) return 'at_risk';
+            return 'expired';
+        });
+    }
+
+    public function scopeFresh(\Illuminate\Database\Eloquent\Builder $query): \Illuminate\Database\Eloquent\Builder
+    {
+        return $query->whereRaw("COALESCE(julianday('now') - julianday(date_received), julianday('now') - julianday(report_month)) <= 30");
+    }
+
+    public function scopeAtRisk(\Illuminate\Database\Eloquent\Builder $query): \Illuminate\Database\Eloquent\Builder
+    {
+        return $query->whereRaw("COALESCE(julianday('now') - julianday(date_received), julianday('now') - julianday(report_month)) BETWEEN 31 AND 60");
+    }
+
+    public function scopeExpired(\Illuminate\Database\Eloquent\Builder $query): \Illuminate\Database\Eloquent\Builder
+    {
+        return $query->whereRaw("COALESCE(julianday('now') - julianday(date_received), julianday('now') - julianday(report_month)) > 60");
+    }
+
+    public function scopeHasBalance(\Illuminate\Database\Eloquent\Builder $query): \Illuminate\Database\Eloquent\Builder
+    {
+        return $query->where('ending_balance', '>', 0);
     }
 
     public function fieldSite(): BelongsTo

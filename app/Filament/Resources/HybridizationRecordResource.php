@@ -137,6 +137,34 @@ class HybridizationRecordResource extends Resource implements HasShieldPermissio
                 Tables\Columns\TextColumn::make('date_planted')
                     ->date()
                     ->sortable(),
+                Tables\Columns\TextColumn::make('estimated_harvest')
+                    ->label('Est. Harvest')
+                    ->getStateUsing(fn ($record) => $record->estimated_harvest_date?->format('M Y') ?? '—')
+                    ->icon('heroicon-m-calendar-days')
+                    ->iconColor('success')
+                    ->toggleable(),
+                Tables\Columns\TextColumn::make('days_left')
+                    ->label('Countdown')
+                    ->getStateUsing(function ($record) {
+                        $days = $record->days_until_harvest;
+                        if ($days === null) return '—';
+                        if ($record->growth_status === 'harvested') return 'Done';
+                        if ($days < 0) return abs($days) . 'd overdue';
+                        if ($days === 0) return 'Today!';
+                        return $days . 'd';
+                    })
+                    ->badge()
+                    ->color(function ($record) {
+                        if ($record->growth_status === 'harvested') return 'primary';
+                        $days = $record->days_until_harvest;
+                        if ($days === null) return 'gray';
+                        if ($days < 0) return 'danger';
+                        if ($days <= 7) return 'danger';
+                        if ($days <= 30) return 'warning';
+                        return 'success';
+                    })
+                    ->alignment('center')
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('growth_status')
                     ->badge()
                     ->color(fn (string $state): string => match ($state) {
@@ -169,6 +197,38 @@ class HybridizationRecordResource extends Resource implements HasShieldPermissio
                     ->options(HybridizationRecord::STATUS_CHOICES),
                 Tables\Filters\SelectFilter::make('growth_status')
                     ->options(HybridizationRecord::GROWTH_STATUS_CHOICES),
+                Tables\Filters\Filter::make('harvest_readiness')
+                    ->form([
+                        Forms\Components\Select::make('readiness')
+                            ->label('Harvest Readiness')
+                            ->options([
+                                'ready' => '🔴 Ready Now (overdue / ≤7 days)',
+                                'upcoming' => '🟡 Upcoming (≤30 days)',
+                                'growing' => '🟢 Still Growing (>30 days)',
+                            ]),
+                    ])
+                    ->query(function (\Illuminate\Database\Eloquent\Builder $query, array $data) {
+                        $readiness = $data['readiness'] ?? null;
+                        if (! $readiness) return $query;
+
+                        $months = '+' . HybridizationRecord::HARVEST_LEAD_MONTHS . ' months';
+
+                        return match ($readiness) {
+                            'ready' => $query
+                                ->where('growth_status', '!=', 'harvested')
+                                ->whereNotNull('date_planted')
+                                ->whereRaw("date(date_planted, ?) <= ?", [$months, now()->addDays(7)->toDateString()]),
+                            'upcoming' => $query
+                                ->where('growth_status', '!=', 'harvested')
+                                ->whereNotNull('date_planted')
+                                ->whereRaw("date(date_planted, ?) BETWEEN ? AND ?", [$months, now()->toDateString(), now()->addDays(30)->toDateString()]),
+                            'growing' => $query
+                                ->where('growth_status', '!=', 'harvested')
+                                ->whereNotNull('date_planted')
+                                ->whereRaw("date(date_planted, ?) > ?", [$months, now()->addDays(30)->toDateString()]),
+                            default => $query,
+                        };
+                    }),
                 self::getStatusFilter(),
             ])
             ->defaultSort('updated_at', 'desc')
@@ -185,7 +245,44 @@ class HybridizationRecordResource extends Resource implements HasShieldPermissio
             ])
             ->headerActions([
                 Tables\Actions\ExportAction::make()
-                    ->exporter(\App\Filament\Exports\HybridizationRecordExporter::class),
+                    ->exporter(\App\Filament\Exports\HybridizationRecordExporter::class)
+                    ->form([
+                        Forms\Components\Select::make('year')
+                            ->options(fn () => collect(range(now()->year, 2024, -1))
+                                ->mapWithKeys(fn ($y) => [$y => $y]))
+                            ->default(now()->year)
+                            ->required(),
+                        Forms\Components\Select::make('month')
+                            ->options([
+                                1 => 'January', 2 => 'February', 3 => 'March',
+                                4 => 'April', 5 => 'May', 6 => 'June',
+                                7 => 'July', 8 => 'August', 9 => 'September',
+                                10 => 'October', 11 => 'November', 12 => 'December',
+                            ])
+                            ->nullable(),
+                        Forms\Components\Select::make('field_site_id')
+                            ->label('Field Site')
+                            ->relationship('fieldSite', 'name')
+                            ->nullable()
+                            ->searchable()
+                            ->preload()
+                            ->hidden(fn () => auth()->user()?->isSupervisor())
+                            ->default(fn () => auth()->user()?->isSupervisor() ? auth()->user()->field_site_id : null),
+                    ])
+                    ->modifyQueryUsing(function (\Illuminate\Database\Eloquent\Builder $query, array $data) {
+                        if ($data['year']) {
+                            $query->whereYear('report_month', $data['year']);
+                        }
+                        if ($data['month']) {
+                            $query->whereMonth('report_month', $data['month']);
+                        }
+                        if (auth()->user()?->isSupervisor()) {
+                            $query->where('field_site_id', auth()->user()->field_site_id);
+                        } elseif ($data['field_site_id']) {
+                            $query->where('field_site_id', $data['field_site_id']);
+                        }
+                        return $query;
+                    }),
             ]);
     }
 
