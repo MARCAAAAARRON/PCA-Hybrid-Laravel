@@ -16,6 +16,11 @@ class Login extends BaseLogin
 {
     protected static string $view = 'filament.pages.login';
 
+    public function getHeading(): string
+    {
+        return 'Sign in';
+    }
+
     public function authenticate(): ?LoginResponse
     {
         try {
@@ -82,5 +87,18 @@ class Login extends BaseLogin
                     ->statePath('data'),
             ),
         ];
+    }
+
+    protected function getEmailFormComponent(): Component
+    {
+        return parent::getEmailFormComponent()
+            ->label('Email address')
+            ->placeholder('admin@admin.com');
+    }
+
+    protected function getPasswordFormComponent(): Component
+    {
+        return parent::getPasswordFormComponent()
+            ->revealable();
     }
 }

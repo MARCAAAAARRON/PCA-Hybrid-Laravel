@@ -13,7 +13,7 @@ class SysAdminStats extends BaseWidget
 
     public static function canView(): bool
     {
-        return auth()->user()?->isSysAdmin();
+        return auth()->user()?->isSuperAdmin();
     }
 
     protected function getStats(): array

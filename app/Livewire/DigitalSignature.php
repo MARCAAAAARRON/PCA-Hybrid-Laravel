@@ -47,7 +47,11 @@ class DigitalSignature extends MyProfileComponent
                         '1:1',
                     ])
                     ->extraInputAttributes(['capture' => 'environment'])
-                    ->helperText('Snap/Upload your signature. IMPORTANT: Click the PENCIL icon on the image to CROP it before saving.')
+                    ->disabled(fn () => !$this->user->canUpdateSignature())
+                    ->helperText(fn () => $this->user->canUpdateSignature()
+                        ? 'Snap/Upload your signature. IMPORTANT: Click the PENCIL icon on the image to CROP it before saving.'
+                        : 'You can only update your digital signature once every 3 months. Next update available: ' . $this->user->signature_updated_at->copy()->addMonths(3)->format('M d, Y')
+                    )
                     ->columnSpanFull(),
             ])
             ->statePath('data');
@@ -62,9 +66,18 @@ class DigitalSignature extends MyProfileComponent
             Storage::disk('public')->delete($this->user->signature_image);
         }
 
-        $this->user->update([
-            'signature_image' => $data['signature_image'] ?? null,
-        ]);
+        if (array_key_exists('signature_image', $data)) {
+            if ($data['signature_image'] !== $this->user->signature_image) {
+                $this->user->update([
+                    'signature_image' => $data['signature_image'],
+                    'signature_updated_at' => now(),
+                ]);
+            } else {
+                $this->user->update([
+                    'signature_image' => $data['signature_image'] ?? null,
+                ]);
+            }
+        }
 
         Notification::make()
             ->success()

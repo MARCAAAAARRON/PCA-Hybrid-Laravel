@@ -25,9 +25,9 @@ class User extends Authenticatable implements FilamentUser, HasAvatar, MustVerif
 
     public const ROLE_CHOICES = [
         'supervisor' => 'COS / Agriculturist',
-        'admin' => 'Senior Agriculturist',
-        'superadmin' => 'PCDM / Division Chief I',
-        'sysadmin' => 'System Administrator',
+        'manager' => 'Senior Agriculturist',
+        'admin' => 'PCDM / Division Chief I',
+        'superadmin' => 'System Administrator',
     ];
 
 
@@ -48,6 +48,7 @@ class User extends Authenticatable implements FilamentUser, HasAvatar, MustVerif
         'signature_image',
         'role',
         'field_site_id',
+        'signature_updated_at',
     ];
 
     /**
@@ -70,6 +71,7 @@ class User extends Authenticatable implements FilamentUser, HasAvatar, MustVerif
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'signature_updated_at' => 'datetime',
         ];
     }
 
@@ -112,6 +114,11 @@ class User extends Authenticatable implements FilamentUser, HasAvatar, MustVerif
         return $this->role === 'supervisor';
     }
 
+    public function isManager(): bool
+    {
+        return $this->role === 'manager';
+    }
+
     public function isAdmin(): bool
     {
         return $this->role === 'admin';
@@ -122,9 +129,9 @@ class User extends Authenticatable implements FilamentUser, HasAvatar, MustVerif
         return $this->role === 'superadmin';
     }
 
-    public function isSysAdmin(): bool
+    public function canUpdateSignature(): bool
     {
-        return $this->role === 'sysadmin';
+        return empty($this->signature_updated_at) || $this->signature_updated_at->copy()->addMonths(3)->isPast();
     }
 
     public function getRoleDisplayAttribute(): string

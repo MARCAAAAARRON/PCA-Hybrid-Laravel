@@ -12,6 +12,6 @@ class SysAdminQuickActions extends Widget
 
     public static function canView(): bool
     {
-        return auth()->user()?->isSysAdmin();
+        return auth()->user()?->isSuperAdmin();
     }
 }

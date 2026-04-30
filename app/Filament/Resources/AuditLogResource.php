@@ -27,7 +27,7 @@ class AuditLogResource extends Resource implements HasShieldPermissions
 
     public static function shouldRegisterNavigation(): bool
     {
-        return auth()->user()?->isSuperAdmin() ?? false;
+        return auth()->user()?->isAdmin() ?? false;
     }
 
     public static function getPermissionPrefixes(): array

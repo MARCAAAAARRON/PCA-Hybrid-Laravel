@@ -10,10 +10,20 @@ use Filament\Widgets\StatsOverviewWidget\Stat;
 class AdminSummaryStats extends BaseWidget
 {
     protected static ?int $sort = 0; // Top of the page
+    protected int | string | array $columnSpan = 'full';
+
+    protected function getColumns(): int
+    {
+        $user = auth()->user();
+        if ($user?->isAdmin()) {
+            return 2;
+        }
+        return 1 + \App\Models\FieldSite::limit(2)->count();
+    }
 
     public static function canView(): bool
     {
-        return auth()->user()?->isAdmin() || auth()->user()?->isSuperAdmin();
+        return auth()->user()?->isManager() || auth()->user()?->isAdmin();
     }
 
     protected function getStats(): array
@@ -21,7 +31,7 @@ class AdminSummaryStats extends BaseWidget
         $user = auth()->user();
         $totalRecords = HybridizationRecord::count();
         
-        if ($user?->isSuperAdmin()) {
+        if ($user?->isAdmin()) {
             return [
                 Stat::make('Total Records', $totalRecords)
                     ->icon('heroicon-o-document-duplicate')
@@ -33,7 +43,6 @@ class AdminSummaryStats extends BaseWidget
             ];
         }
 
-        $pendingValidation = HybridizationRecord::where('status', 'submitted')->count();
         $sites = FieldSite::limit(2)->get();
         
         $stats = [
@@ -42,12 +51,6 @@ class AdminSummaryStats extends BaseWidget
                 ->icon('heroicon-o-document-duplicate')
                 ->color('success')
                 ->extraAttributes(['class' => 'stat-gradient-2']), // Greenish
-                
-            Stat::make('Pending Validation', $pendingValidation)
-                ->description('Records awaiting approval')
-                ->icon('heroicon-o-exclamation-circle')
-                ->color('warning')
-                ->extraAttributes(['class' => 'stat-gradient-4']), // Orangish/Yellowish
         ];
         
         foreach ($sites as $index => $site) {

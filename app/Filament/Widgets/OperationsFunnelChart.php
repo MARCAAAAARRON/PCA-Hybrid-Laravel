@@ -13,12 +13,12 @@ class OperationsFunnelChart extends ChartWidget
     protected static ?string $heading = '📊 Regional Operations Funnel';
     
     protected static ?int $sort = 8;
-    protected int | string | array $columnSpan = 1;
-    protected static ?string $maxHeight = '320px';
+    protected int | string | array $columnSpan = ['default' => 'full', 'lg' => 2];
+    protected static ?string $maxHeight = '250px';
 
     public static function canView(): bool
     {
-        return auth()->user()?->isAdmin() || auth()->user()?->isSuperAdmin();
+        return auth()->user()?->isManager() || auth()->user()?->isAdmin();
     }
 
     protected function getData(): array

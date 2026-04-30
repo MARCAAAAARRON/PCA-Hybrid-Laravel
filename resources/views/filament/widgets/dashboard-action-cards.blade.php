@@ -278,7 +278,8 @@
                 <div class="action-img-container">
                     <img src="{{ asset('images/card_harvest.png') }}" class="action-img" alt="Harvest" />
                 </div>
-                <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 1.5rem;">
+                <div
+                    style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 1.5rem;">
                     <div>
                         <h4 class="action-count">{{ App\Models\MonthlyHarvest::count() }}</h4>
                         <p class="action-subtext">Total harvest records posted</p>
@@ -330,7 +331,7 @@
             </div>
             <div class="action-card-body">
                 <div class="action-img-container">
-                    <img src="{{ asset('images/image copy 2.png') }}" class="action-img" alt="Pollen" />
+                    <img src="{{ asset('images/coconut-palm.jpg') }}" class="action-img" alt="Pollen" />
                 </div>
                 <div class="action-info-box info-pollen" style="margin-bottom: 1.5rem; min-height: 4.5rem;">
                     <x-filament::icon icon="heroicon-o-information-circle"

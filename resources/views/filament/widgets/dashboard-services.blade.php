@@ -183,8 +183,7 @@
                     style="font-size: 1.25rem; font-weight: 500; letter-spacing: -0.025em; margin: 0;">Services</h3>
             </div>
 
-            <div style="display: flex; flex-wrap: wrap; gap: 1.25rem; padding-bottom: 1rem;"
-                class="hide-scrollbar">
+            <div style="display: flex; flex-wrap: wrap; gap: 1.25rem; padding-bottom: 1rem;" class="hide-scrollbar">
                 <!-- Service Card 1 -->
                 <div class="service-sub-card"
                     style="flex: 1; min-width: 180px; border-radius: 1.25rem; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); border-width: 1px; border-style: solid; position: relative; min-height: 17.5rem; padding-bottom: 0.5rem; display: flex; flex-direction: column; transition: transform 0.2s;"
@@ -223,7 +222,7 @@
                     onmouseover="this.style.transform='translateY(-4px)'"
                     onmouseout="this.style.transform='translateY(0)'">
                     <div class="service-img-container" style="height: 8.5rem; position: relative;">
-                        <img src="{{ asset('images/image copy.png') }}"
+                        <img src="{{ asset('images/coconut-palm.jpg') }}"
                             style="width: 100%; height: 100%; object-fit: cover; border-bottom-right-radius: 5rem;"
                             alt="Hybrid Records" />
                     </div>
@@ -263,8 +262,7 @@
                     <!-- Floating Icon -->
                     <div class="service-icon-bg"
                         style="position: absolute; top: 6.5rem; left: 50%; transform: translateX(-50%); padding: 0.75rem; border-radius: 1rem; border-style: solid; border-width: 1px; z-index: 10; display: flex; justify-content: center; align-items: center;">
-                        <x-filament::icon icon="heroicon-o-truck"
-                            style="width: 2rem; height: 2rem; color: #0284c7;" />
+                        <x-filament::icon icon="heroicon-o-truck" style="width: 2rem; height: 2rem; color: #0284c7;" />
                     </div>
 
                     <div
@@ -272,7 +270,8 @@
                         <h4
                             style="font-size: 1.05rem; font-weight: 700; color: #0369a1; margin-bottom: 0.5rem; line-height: 1.2;">
                             Hybrid<br />Distribution</h4>
-                        <a href="{{ App\Filament\Resources\HybridDistributionResource::getUrl('create') ?? '#' }}" class="service-btn"
+                        <a href="{{ App\Filament\Resources\HybridDistributionResource::getUrl('create') ?? '#' }}"
+                            class="service-btn"
                             style="display: inline-flex; align-items: center; border-style: solid; border-width: 1px; justify-content: center; gap: 0.25rem; padding: 0.375rem 0; width: 70%; margin: 0 auto; border-radius: 0.5rem; font-size: 0.875rem; font-weight: 500; text-decoration: none; transition: all 0.2s;">
                             Apply <x-filament::icon icon="heroicon-o-arrow-right"
                                 style="width: 0.875rem; height: 0.875rem; margin-left: 0.125rem;" />

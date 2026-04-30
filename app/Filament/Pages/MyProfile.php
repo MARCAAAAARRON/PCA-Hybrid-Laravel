@@ -81,7 +81,11 @@ class MyProfile extends BreezyProfilePage
                                 '1:1',
                             ])
                             ->extraInputAttributes(['capture' => 'environment'])
-                            ->helperText('Snap/Upload your signature. IMPORTANT: Click the PENCIL icon on the image to CROP it before saving.'),
+                            ->disabled(fn () => !auth()->user()->canUpdateSignature())
+                            ->helperText(fn () => auth()->user()->canUpdateSignature()
+                                ? 'Snap/Upload your signature. IMPORTANT: Click the PENCIL icon on the image to CROP it before saving.'
+                                : 'You can only update your digital signature once every 3 months. Next update available: ' . auth()->user()->signature_updated_at->addMonths(3)->format('M d, Y')
+                            ),
                     ]),
                 
                 Section::make('Change Password')
@@ -121,8 +125,14 @@ class MyProfile extends BreezyProfilePage
             'middle_initial' => $data['middle_initial'],
             'last_name' => $data['last_name'],
             'email' => $data['email'],
-            'signature_image' => $data['signature_image'],
         ];
+
+        if (array_key_exists('signature_image', $data)) {
+            $updateData['signature_image'] = $data['signature_image'];
+            if ($data['signature_image'] !== $user->signature_image) {
+                $updateData['signature_updated_at'] = now();
+            }
+        }
 
         if (!empty($data['new_password'])) {
             $updateData['password'] = Hash::make($data['new_password']);

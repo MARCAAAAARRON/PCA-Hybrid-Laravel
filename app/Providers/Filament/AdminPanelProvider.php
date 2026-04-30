@@ -42,8 +42,10 @@ class AdminPanelProvider extends PanelProvider
         //this is feels bad but this is the solution that i can think for now :D
         // Check if settings table exists first
         try {
-            if (\Illuminate\Support\Facades\Schema::hasTable('settings')
-                && \Illuminate\Support\Facades\DB::table('settings')->count() > 0) {
+            if (
+                \Illuminate\Support\Facades\Schema::hasTable('settings')
+                && \Illuminate\Support\Facades\DB::table('settings')->count() > 0
+            ) {
                 $this->settings = app(KaidoSetting::class);
             }
         } catch (\Throwable $e) {
@@ -61,7 +63,7 @@ class AdminPanelProvider extends PanelProvider
             ->when($this->settings->registration_enabled ?? false, fn($panel) => $panel->registration())
             ->when($this->settings->password_reset_enabled ?? true, fn($panel) => $panel->passwordReset())
             ->emailVerification()
-            ->brandLogo(fn () => new \Illuminate\Support\HtmlString('
+            ->brandLogo(fn() => new \Illuminate\Support\HtmlString('
                 <div class="flex items-center gap-2">
                     <img src="' . asset('images/PCA_Logo.png') . '" class="h-8 w-auto shrink-0" alt="PCA Logo" />
                     <span class="pca-logo-text">PCA Hybridization Portal</span>
@@ -74,7 +76,8 @@ class AdminPanelProvider extends PanelProvider
             ->renderHook(
                 \Filament\View\PanelsRenderHook::HEAD_END,
                 function (): string {
-                    $html = '<style>
+                    $html = <<<HTML
+<style>
     /* --- Global Primary Color Override (PCA Green) --- */
     :root {
         --primary-50: 236, 253, 245 !important;
@@ -191,7 +194,123 @@ class AdminPanelProvider extends PanelProvider
         background-color: rgba(var(--primary-900), 0.1) !important;
         border-bottom: 1px solid rgba(var(--primary-900), 0.2) !important;
     }
-</style>';
+
+    /* --- Login Page Decorations --- */
+    .pca-bg-circles {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: -1;
+        overflow: hidden;
+        background-color: #f9fafb;
+        pointer-events: none;
+    }
+    
+    .circle-top-right {
+        position: absolute;
+        top: -350px;
+        right: -350px;
+        width: 800px;
+        height: 800px;
+        border-radius: 50%;
+        border: 120px solid #0b9e4f;
+        background-color: #d4e122;
+        opacity: 0.9;
+    }
+    
+    .circle-top-right::after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 300px;
+        height: 300px;
+        background-color: white;
+        border-radius: 50%;
+        transform: translate(-50%, -50%);
+        opacity: 1;
+    }
+    
+    .circle-bottom-left {
+        position: absolute;
+        bottom: -300px;
+        left: -300px;
+        width: 700px;
+        height: 700px;
+        border-radius: 50%;
+        background-color: #0b9e4f;
+        opacity: 0.9;
+    }
+
+    /* Auth Card Styling */
+    .fi-simple-main-ctn {
+        position: relative;
+        z-index: 10;
+        background: transparent !important;
+    }
+    
+    .fi-simple-main {
+        background: white !important;
+        border-radius: 1.25rem !important;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
+        padding: 3rem 2.5rem !important;
+        border: 1px solid rgba(0,0,0,0.05) !important;
+        max-width: 28rem !important;
+    }
+
+    .dark .fi-simple-main {
+        background: #111827 !important;
+        border-color: rgba(255,255,255,0.1) !important;
+    }
+
+    .fi-simple-logo {
+        margin-bottom: 1.5rem !important;
+    }
+
+    /* Form Elements */
+    .fi-simple-main input {
+        border-radius: 0.5rem !important;
+    }
+    
+    .fi-simple-main button[type="submit"] {
+        border-radius: 0.5rem !important;
+        padding-top: 0.75rem !important;
+        padding-bottom: 0.75rem !important;
+        font-weight: 600 !important;
+        font-size: 1rem !important;
+    }
+
+    /* Social Login */
+    .fi-socialite-button {
+        border-radius: 0.5rem !important;
+        border: 1px solid #d1d5db !important;
+        font-weight: 500 !important;
+        transition: all 0.2s !important;
+    }
+    
+    .fi-socialite-button:hover {
+        background-color: #f9fafb !important;
+    }
+
+    .fi-simple-header-heading {
+        font-size: 1.875rem !important;
+        font-weight: 800 !important;
+        color: #111827 !important;
+        margin-top: 0.5rem !important;
+    }
+
+    .dark .fi-simple-header-heading {
+        color: white !important;
+    }
+
+    .fi-simple-header-subheading a {
+        color: #0b9e4f !important;
+        font-weight: 600 !important;
+    }
+</style>
+HTML;
 
                     return $html;
                 }
@@ -200,6 +319,13 @@ class AdminPanelProvider extends PanelProvider
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages')
             ->pages([
                 \App\Filament\Pages\Dashboard::class,
+            ])
+            ->navigationGroups([
+                'Hybridization',
+                'Field Data',
+                'Reports',
+                'Filament Shield',
+                'Settings',
             ])
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\\Filament\\Widgets')
             ->widgets([
@@ -261,30 +387,30 @@ class AdminPanelProvider extends PanelProvider
         if ($this->settings->sso_enabled ?? true) {
             $plugins[] =
                 FilamentSocialitePlugin::make()
-                ->providers([
-                    Provider::make('google')
-                        ->label('Google')
-                        ->icon('fab-google')
-                        ->color(Color::hex('#2f2a6b'))
-                        ->outlined(true)
-                        ->stateless(false)
-                ])->registration(true)
-                ->createUserUsing(function (string $provider, SocialiteUserContract $oauthUser, FilamentSocialitePlugin $plugin) {
-                    $user = User::where('email', $oauthUser->getEmail())->first();
+                    ->providers([
+                        Provider::make('google')
+                            ->label('Google')
+                            ->icon('fab-google')
+                            ->color(Color::hex('#2f2a6b'))
+                            ->outlined(true)
+                            ->stateless(false)
+                    ])->registration(true)
+                    ->createUserUsing(function (string $provider, SocialiteUserContract $oauthUser, FilamentSocialitePlugin $plugin) {
+                        $user = User::where('email', $oauthUser->getEmail())->first();
 
-                    if (!$user) {
-                        // If user doesn't exist, we don't allow auto-registration for PCA roles.
-                        // They must be created by an Admin first.
-                        throw new \Exception('Your email is not registered in the PCA Hybrid System. Please contact your administrator.');
-                    }
+                        if (!$user) {
+                            // If user doesn't exist, we don't allow auto-registration for PCA roles.
+                            // They must be created by an Admin first.
+                            throw new \Exception('Your email is not registered in the PCA Hybrid System. Please contact your administrator.');
+                        }
 
-                    // Update existing user with latest info if needed
-                    $user->name = $oauthUser->getName();
-                    $user->email_verified_at = $user->email_verified_at ?? now();
-                    $user->save();
+                        // Update existing user with latest info if needed
+                        $user->name = $oauthUser->getName();
+                        $user->email_verified_at = $user->email_verified_at ?? now();
+                        $user->save();
 
-                    return $user;
-                });
+                        return $user;
+                    });
         }
         return $plugins;
     }

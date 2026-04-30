@@ -34,14 +34,14 @@
             </x-filament::button>
 
             <x-filament::button
-                href="{{ \App\Filament\Resources\AuditLogResource::getUrl('index') }}"
+                href="{{ \App\Filament\Resources\FieldSiteResource::getUrl('index') }}"
                 tag="a"
                 color="gray"
                 outlined
-                icon="heroicon-m-shield-check"
+                icon="heroicon-m-map-pin"
                 class="justify-start w-full text-left"
             >
-                View System Audit Logs
+                Manage Field Sites
             </x-filament::button>
         </div>
     </x-filament::section>

@@ -48,7 +48,7 @@ trait HasApprovalActions
                 ->modalDescription('This will submit the record for review.')
                 ->visible(fn (Model $record) => 
                     $record->isDraft() &&
-                    in_array(auth()->user()->role, ['supervisor', 'admin', 'superadmin'])
+                    in_array(auth()->user()->role, ['supervisor', 'manager', 'admin'])
                 )
                 ->action(function (Model $record) {
                     $msg = $record->markAsPrepared(auth()->user());
@@ -65,7 +65,7 @@ trait HasApprovalActions
                 ->modalDescription('This will confirm the record has been reviewed.')
                 ->visible(fn (Model $record) => 
                     $record->isPrepared() &&
-                    in_array(auth()->user()->role, ['admin', 'superadmin'])
+                    in_array(auth()->user()->role, ['manager', 'admin'])
                 )
                 ->action(function (Model $record) {
                     $result = $record->markAsReviewed(auth()->user());
@@ -89,7 +89,7 @@ trait HasApprovalActions
                 ->modalDescription('This will officially note the record.')
                 ->visible(fn (Model $record) => 
                     $record->isReviewed() &&
-                    auth()->user()->role === 'superadmin'
+                    auth()->user()->role === 'admin'
                 )
                 ->action(function (Model $record) {
                     $result = $record->markAsNoted(auth()->user());
@@ -113,7 +113,7 @@ trait HasApprovalActions
                 ->modalDescription('This will reset all signatories and return the record to draft status.')
                 ->visible(fn (Model $record) => 
                     !$record->isDraft() &&
-                    in_array(auth()->user()->role, ['admin', 'superadmin'])
+                    in_array(auth()->user()->role, ['manager', 'admin'])
                 )
                 ->action(function (Model $record) {
                     $msg = $record->returnToDraft();

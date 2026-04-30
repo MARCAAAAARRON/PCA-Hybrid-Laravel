@@ -20,22 +20,22 @@ class DatabaseSeeder extends Seeder
         $loay = FieldSite::where('name', 'Loay Farm')->first();
         $balilihan = FieldSite::where('name', 'Balilihan Farm')->first();
 
-        // 2. Create Super Admin
-        $superAdmin = User::factory()->create([
+        // 2. Create Admin (PCDM / Division Chief I)
+        $admin = User::factory()->create([
             'name' => 'Division Chief',
-            'email' => 'superadmin@pca.gov.ph',
+            'email' => 'admin@pca.gov.ph',
             'password' => Hash::make('PCA@gov.ph'),
-            'role' => 'superadmin',
+            'role' => 'admin',
             'field_site_id' => null,
             'email_verified_at' => now(),
         ]);
 
-        // 3. Create Admin (Senior Agriculturist)
-        $admin = User::factory()->create([
+        // 3. Create Manager (Senior Agriculturist)
+        $manager = User::factory()->create([
             'name' => 'Senior Agriculturist',
-            'email' => 'admin@pca.gov.ph',
+            'email' => 'manager@pca.gov.ph',
             'password' => Hash::make('PCA@gov.ph'),
-            'role' => 'admin',
+            'role' => 'manager',
             'field_site_id' => null,
             'email_verified_at' => now(),
         ]);
@@ -59,12 +59,12 @@ class DatabaseSeeder extends Seeder
             'email_verified_at' => now(),
         ]);
 
-        // 5. Create Sysadmin
-        $sysadmin = User::factory()->create([
+        // 5. Create Superadmin (System Administrator)
+        $superadmin = User::factory()->create([
             'name' => 'System Administrator',
-            'email' => 'sysadmin@pca.gov.ph',
+            'email' => 'superadmin@pca.gov.ph',
             'password' => Hash::make('PCA@gov.ph'),
-            'role' => 'sysadmin',
+            'role' => 'superadmin',
             'field_site_id' => null,
             'email_verified_at' => now(),
         ]);
@@ -73,7 +73,7 @@ class DatabaseSeeder extends Seeder
         User::factory()->create([
             'name' => 'admin',
             'email' => 'admin@admin.com',
-            'role' => 'superadmin',
+            'role' => 'admin',
             'email_verified_at' => now(),
         ]);
 

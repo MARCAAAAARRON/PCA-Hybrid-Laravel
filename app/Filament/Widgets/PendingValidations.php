@@ -15,7 +15,7 @@ class PendingValidations extends BaseWidget
 
     public static function canView(): bool
     {
-        return auth()->user()?->isAdmin();
+        return false; // Removed from dashboard per admin request
     }
 
     public function table(Table $table): Table

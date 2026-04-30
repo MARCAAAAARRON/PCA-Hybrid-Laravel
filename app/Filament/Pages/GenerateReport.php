@@ -24,6 +24,16 @@ class GenerateReport extends Page
 
     protected static string $view = 'filament.pages.generate-report';
 
+    public static function shouldRegisterNavigation(): bool
+    {
+        return !auth()->user()?->isSuperAdmin();
+    }
+
+    public static function canAccess(): bool
+    {
+        return !auth()->user()?->isSuperAdmin();
+    }
+
     public ?array $data = [];
 
     public function mount(): void

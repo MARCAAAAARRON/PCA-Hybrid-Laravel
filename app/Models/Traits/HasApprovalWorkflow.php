@@ -77,7 +77,7 @@ trait HasApprovalWorkflow
     /**
      * Mark as Reviewed. Implements:
      * - Maker-checker: cannot review if you prepared it.
-     * - Attribution: If a chief/superadmin, attribute to site's admin.
+     * - Attribution: If a chief/admin, attribute to site's manager.
      */
     public function markAsReviewed(User $actingUser): string|false
     {
@@ -89,12 +89,12 @@ trait HasApprovalWorkflow
         $sigUser = $actingUser;
 
         // Attribution: If a chief, try to find the site's admin
-        if (in_array($actingUser->role, ['superadmin', 'sysadmin']) && $this->field_site_id) {
-            $adminUser = User::where('field_site_id', $this->field_site_id)
-                ->where('role', 'admin')
+        if (in_array($actingUser->role, ['admin', 'superadmin']) && $this->field_site_id) {
+            $managerUser = User::where('field_site_id', $this->field_site_id)
+                ->where('role', 'manager')
                 ->first();
-            if ($adminUser) {
-                $sigUser = $adminUser;
+            if ($managerUser) {
+                $sigUser = $managerUser;
             }
         }
 

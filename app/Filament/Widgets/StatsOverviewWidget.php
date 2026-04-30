@@ -18,13 +18,13 @@ class StatsOverviewWidget extends BaseWidget
 
     public static function canView(): bool
     {
-        return !auth()->user()?->isSysAdmin();
+        return !auth()->user()?->isSuperAdmin();
     }
 
     public function getHeading(): ?string
     {
         $user = auth()->user();
-        if ($user?->isAdmin() || $user?->isSuperAdmin()) {
+        if ($user?->isManager() || $user?->isAdmin()) {
             return 'Field Data Stats';
         }
         return null;

@@ -20,19 +20,20 @@ class RoleSeeder extends Seeder
         // Create roles if they don't exist
         $superAdmin = Role::firstOrCreate(['name' => 'super_admin', 'guard_name' => 'web']);
         $admin = Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);
+        $manager = Role::firstOrCreate(['name' => 'manager', 'guard_name' => 'web']);
         $supervisor = Role::firstOrCreate(['name' => 'supervisor', 'guard_name' => 'web']);
 
         // Super Admin gets all permissions (handled by Shield)
-        // Admin gets field data + hybridization record permissions
-        $adminPermissions = Permission::where('name', 'like', '%hybrid_distribution%')
+        // Manager gets field data + hybridization record permissions
+        $managerPermissions = Permission::where('name', 'like', '%hybrid_distribution%')
             ->orWhere('name', 'like', '%monthly_harvest%')
             ->orWhere('name', 'like', '%nursery_operation%')
             ->orWhere('name', 'like', '%pollen_production%')
             ->orWhere('name', 'like', '%hybridization_record%')
             ->pluck('name');
 
-        if ($adminPermissions->isNotEmpty()) {
-            $admin->syncPermissions($adminPermissions);
+        if ($managerPermissions->isNotEmpty()) {
+            $manager->syncPermissions($managerPermissions);
         }
 
         // Supervisor gets view + create + update on field data only
@@ -78,6 +79,11 @@ class RoleSeeder extends Seeder
                 case 'admin':
                     if (!$user->hasRole('admin')) {
                         $user->assignRole('admin');
+                    }
+                    break;
+                case 'manager':
+                    if (!$user->hasRole('manager')) {
+                        $user->assignRole('manager');
                     }
                     break;
                 case 'supervisor':

@@ -73,6 +73,11 @@ class UserResource extends Resource
         return true;
     }
 
+    public static function shouldRegisterNavigation(): bool
+    {
+        return auth()->user()?->isSuperAdmin() ?? false;
+    }
+
     public static function table(Table $table): Table
     {
         return $table

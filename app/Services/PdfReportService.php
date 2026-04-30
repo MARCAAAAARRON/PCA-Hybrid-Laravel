@@ -24,7 +24,7 @@ class PdfReportService
     {
         $user = auth()->user();
         $isSupervisor = $user?->isSupervisor() ?? false;
-        $canBypassSiteScope = $user && ($user->isAdmin() || $user->isSuperAdmin() || $user->isSysAdmin());
+        $canBypassSiteScope = $user && ($user->isManager() || $user->isAdmin() || $user->isSuperAdmin());
         $effectiveFieldSiteId = $isSupervisor
             ? $user->field_site_id
             : ($filters['field_site_id'] ?? null);

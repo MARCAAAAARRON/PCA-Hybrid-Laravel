@@ -20,7 +20,7 @@ class PerFarmBreakdown extends BaseWidget
 
     public static function canView(): bool
     {
-        return auth()->user()?->isAdmin() || auth()->user()?->isSuperAdmin();
+        return auth()->user()?->isManager() || auth()->user()?->isAdmin();
     }
 
     public function table(Table $table): Table

@@ -56,6 +56,9 @@ class AuditLog extends Model
                 continue;
             }
             $cleanKey = str_replace('_', ' ', ucwords($key, '_'));
+            if (is_array($value) || is_object($value)) {
+                $value = json_encode($value);
+            }
             $items[] = "{$cleanKey}: {$value}";
         }
 

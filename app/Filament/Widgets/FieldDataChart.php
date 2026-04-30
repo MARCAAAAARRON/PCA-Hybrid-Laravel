@@ -11,17 +11,17 @@ use Filament\Widgets\ChartWidget;
 class FieldDataChart extends ChartWidget
 {
     protected static ?int $sort = 2;
-    protected int|string|array $columnSpan = 2;
+    protected int|string|array $columnSpan = 'full';
 
     public static function canView(): bool
     {
-        return !auth()->user()?->isSysAdmin();
+        return !auth()->user()?->isSuperAdmin();
     }
 
     public function getHeading(): ?string
     {
         $user = auth()->user();
-        if ($user?->isAdmin() || $user?->isSuperAdmin()) {
+        if ($user?->isManager() || $user?->isAdmin()) {
             return 'Field Data Overview (Combined)';
         }
         return 'Field Data Overview';

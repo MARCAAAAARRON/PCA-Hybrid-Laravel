@@ -15,8 +15,8 @@ trait NotifiesOnRecordCreation
                 return;
             }
 
-            // Exclude sysadmin from the receiver list
-            $users = User::where('role', '!=', 'sysadmin')->get();
+            // Exclude superadmin from the receiver list
+            $users = User::where('role', '!=', 'superadmin')->get();
             $creator = auth()->user()?->name ?? 'System';
             $modelName = class_basename($model);
             

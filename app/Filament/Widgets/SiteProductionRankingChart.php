@@ -13,12 +13,12 @@ class SiteProductionRankingChart extends ChartWidget
     protected static ?string $heading = '🏆 Site Production Ranking';
 
     protected static ?int $sort = 7;
-    protected int | string | array $columnSpan = 1;
-    protected static ?string $maxHeight = '320px';
+    protected int | string | array $columnSpan = ['default' => 'full', 'lg' => 1];
+    protected static ?string $maxHeight = '200px';
 
     public static function canView(): bool
     {
-        return auth()->user()?->isAdmin() || auth()->user()?->isSuperAdmin();
+        return auth()->user()?->isManager() || auth()->user()?->isAdmin();
     }
 
     protected function getData(): array
@@ -85,6 +85,7 @@ class SiteProductionRankingChart extends ChartWidget
     {
         return [
             'indexAxis' => 'y',
+            'maintainAspectRatio' => false,
             'plugins' => [
                 'legend' => ['display' => false],
             ],

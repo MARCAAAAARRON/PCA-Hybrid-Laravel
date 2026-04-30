@@ -15,7 +15,7 @@ class EfficiencyStatsWidget extends BaseWidget
 
     public static function canView(): bool
     {
-        return auth()->user()?->isAdmin() || auth()->user()?->isSuperAdmin();
+        return auth()->user()?->isManager() || auth()->user()?->isAdmin();
     }
 
     protected function getStats(): array

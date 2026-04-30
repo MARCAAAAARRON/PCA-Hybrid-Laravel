@@ -15,19 +15,24 @@ class RolePermissionSeeder extends Seeder
     public function run(): void
     {
         // 1. Ensure Roles Exist
-        $sysadminRole = Role::firstOrCreate(['name' => 'sysadmin', 'guard_name' => 'web']);
         $superadminRole = Role::firstOrCreate(['name' => 'superadmin', 'guard_name' => 'web']);
         $adminRole = Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);
+        $managerRole = Role::firstOrCreate(['name' => 'manager', 'guard_name' => 'web']);
         $supervisorRole = Role::firstOrCreate(['name' => 'supervisor', 'guard_name' => 'web']);
+
+        // Revoke all existing permissions to start fresh and avoid carryover
+        $superadminRole->syncPermissions([]);
+        $adminRole->syncPermissions([]);
+        $managerRole->syncPermissions([]);
+        $supervisorRole->syncPermissions([]);
 
         // 2. Fetch all generated permissions
         $allPermissions = Permission::all();
 
         // 3. Define module groups
-        $sysAdminOnlyModules = ['role']; // Strict technical configuration
-        $systemManagementModules = ['user', 'audit::log']; // Operational management
+        $superAdminOnlyModules = ['role', 'user', 'field::site']; // Superadmin: roles, users, field sites
+        $adminOnlyModules = ['audit::log']; // Admin: audit logs only
         $fieldDataModules = [
-            'field::site',
             'hybrid::distribution',
             'hybridization::record',
             'monthly::harvest',
@@ -49,34 +54,32 @@ class RolePermissionSeeder extends Seeder
 
             // Check if this is a shared permission (pages/widgets)
             if (in_array($name, $sharedPermissions)) {
-                $sysadminRole->givePermissionTo($permission);
                 $superadminRole->givePermissionTo($permission);
                 $adminRole->givePermissionTo($permission);
+                $managerRole->givePermissionTo($permission);
                 $supervisorRole->givePermissionTo($permission);
                 continue;
             }
 
-            // A. Sysadmin Only (Roles)
-            foreach ($sysAdminOnlyModules as $module) {
+            // A. Superadmin Only (Roles, Users, Field Sites)
+            foreach ($superAdminOnlyModules as $module) {
                 if (str_ends_with($name, "_{$module}") || str_ends_with($name, "::{$module}")) {
-                    $sysadminRole->givePermissionTo($permission);
-                }
-            }
-
-            // B. System Management (Users, Audit Logs) - Sysadmin + Superadmin
-            foreach ($systemManagementModules as $module) {
-                if (str_ends_with($name, "_{$module}") || str_ends_with($name, "::{$module}")) {
-                    $sysadminRole->givePermissionTo($permission);
                     $superadminRole->givePermissionTo($permission);
                 }
             }
 
-            // C. Field Data Modules
+            // B. Admin Only (Audit Logs)
+            foreach ($adminOnlyModules as $module) {
+                if (str_ends_with($name, "_{$module}") || str_ends_with($name, "::{$module}")) {
+                    $adminRole->givePermissionTo($permission);
+                }
+            }
+
+            // C. Field Data Modules - Only operational roles (Admin, Manager, Supervisor)
             foreach ($fieldDataModules as $module) {
                 if (str_ends_with($name, "_{$module}") || str_ends_with($name, "::{$module}")) {
-                    $sysadminRole->givePermissionTo($permission); // Sysadmin sees all
-                    $superadminRole->givePermissionTo($permission); // Division Chief sees all
-                    $adminRole->givePermissionTo($permission);
+                    $adminRole->givePermissionTo($permission); // Division Chief sees all
+                    $managerRole->givePermissionTo($permission);
                     $supervisorRole->givePermissionTo($permission);
                 }
             }
