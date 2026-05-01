@@ -10,7 +10,7 @@
             </h2>
         </div>
 
-        <div class="flex flex-col gap-3">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <x-filament::button
                 href="{{ \App\Filament\Resources\UserResource::getUrl('create') }}"
                 tag="a"
