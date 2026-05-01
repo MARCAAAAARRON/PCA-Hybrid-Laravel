@@ -280,42 +280,57 @@ class MonthlyHarvestExport
     {
         $row = $startRow;
         
+        // Define signatory column merge ranges
+        $sigRanges = [
+            'prepared' => ['start' => 'A', 'end' => 'E'],
+            'reviewed' => ['start' => 'K', 'end' => 'O'],
+            'noted'    => ['start' => 'S', 'end' => 'U'],
+        ];
+        
         // Resolve signatory labels from FieldSite overrides
         $prepLabel = $site?->prepared_by_label ?: 'Prepared by:';
         $revLabel = $site?->reviewed_by_label ?: 'Reviewed by:';
         $noteLabel = $site?->noted_by_label ?: 'Noted by:';
+        $labels = ['prepared' => $prepLabel, 'reviewed' => $revLabel, 'noted' => $noteLabel];
         
-        $sheet->setCellValue('A' . $row, $prepLabel);
-        $sheet->setCellValue('K' . $row, $revLabel);
-        $sheet->setCellValue('S' . $row, $noteLabel);
+        // Label row — merge and center
+        foreach ($sigRanges as $key => $range) {
+            $sheet->mergeCells("{$range['start']}{$row}:{$range['end']}{$row}");
+            $sheet->setCellValue($range['start'] . $row, $labels[$key]);
+            $sheet->getStyle("{$range['start']}{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        }
         
         $signatureRow = $row + 1;
+        $sheet->getRowDimension($signatureRow)->setRowHeight(50);
         
-        $row += 4;
+        // Merge signature row
+        foreach ($sigRanges as $range) {
+            $sheet->mergeCells("{$range['start']}{$signatureRow}:{$range['end']}{$signatureRow}");
+        }
+        
+        $row += 2;
         
         // Resolve signatories: FieldSite overrides → Record approval users → Blank
         $signatories = $this->resolveSignatories($site, $records);
         
-        $sheet->setCellValue('A' . $row, $signatories['prepared']['name']);
-        $sheet->setCellValue('K' . $row, $signatories['reviewed']['name']);
-        $sheet->setCellValue('S' . $row, $signatories['noted']['name']);
-        
-        $sheet->getStyle("A$row:U$row")->getFont()->setBold(true);
-        $sheet->getStyle("A$row")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-        $sheet->getStyle("K$row")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-        $sheet->getStyle("S$row")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        // Name row — merge, bold, center
+        foreach ($sigRanges as $key => $range) {
+            $sheet->mergeCells("{$range['start']}{$row}:{$range['end']}{$row}");
+            $sheet->setCellValue($range['start'] . $row, $signatories[$key]['name']);
+            $sheet->getStyle("{$range['start']}{$row}")->getFont()->setBold(true);
+            $sheet->getStyle("{$range['start']}{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        }
         
         $row++;
-        $sheet->setCellValue('A' . $row, $signatories['prepared']['title']);
-        $sheet->setCellValue('K' . $row, $signatories['reviewed']['title']);
-        $sheet->setCellValue('S' . $row, $signatories['noted']['title']);
-        
-        $sheet->getStyle("A$row")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-        $sheet->getStyle("K$row")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-        $sheet->getStyle("S$row")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        // Title row — merge and center
+        foreach ($sigRanges as $key => $range) {
+            $sheet->mergeCells("{$range['start']}{$row}:{$range['end']}{$row}");
+            $sheet->setCellValue($range['start'] . $row, $signatories[$key]['title']);
+            $sheet->getStyle("{$range['start']}{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        }
 
         // Draw signature images
-        $this->addSignatures($sheet, $signatureRow, $signatories, ['prepared' => 'A', 'reviewed' => 'K', 'noted' => 'S']);
+        $this->addSignatures($sheet, $signatureRow, $signatories, $sigRanges);
     }
 
     /**
@@ -387,9 +402,9 @@ class MonthlyHarvestExport
         }
     }
 
-    protected function addSignatures(Worksheet $sheet, int $row, array $signatories, array $cols)
+    protected function addSignatures(Worksheet $sheet, int $row, array $signatories, array $sigRanges)
     {
-        foreach ($cols as $key => $col) {
+        foreach ($sigRanges as $key => $range) {
             $user = $signatories[$key]['user'] ?? null;
             if ($user && $user->signature_image) {
                 try {
@@ -401,9 +416,15 @@ class MonthlyHarvestExport
                         
                         $drawing = new Drawing();
                         $drawing->setPath($tmp);
-                        $drawing->setHeight(40);
-                        $drawing->setCoordinates($col . $row);
-                        $drawing->setOffsetX(45);
+                        $drawing->setHeight(60);
+                        $drawing->setCoordinates($range['start'] . $row);
+                        
+                        // Center the image within the merged column range
+                        $totalWidth = $this->getColumnRangePixelWidth($sheet, $range['start'], $range['end']);
+                        $imgWidth = $drawing->getWidth();
+                        $offsetX = max(0, (int)(($totalWidth - $imgWidth) / 2));
+                        
+                        $drawing->setOffsetX($offsetX);
                         $drawing->setWorksheet($sheet);
                     }
                 } catch (\Exception $e) {
@@ -412,4 +433,23 @@ class MonthlyHarvestExport
             }
         }
     }
+
+    protected function getColumnRangePixelWidth(Worksheet $sheet, string $startCol, string $endCol): float
+    {
+        $totalWidth = 0;
+        $start = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($startCol);
+        $end = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($endCol);
+        
+        for ($i = $start; $i <= $end; $i++) {
+            $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($i);
+            $width = $sheet->getColumnDimension($colLetter)->getWidth();
+            if ($width < 0) {
+                $width = 8.43; // Default column width
+            }
+            $totalWidth += ($width * 7) + 5;
+        }
+        
+        return $totalWidth;
+    }
 }
+

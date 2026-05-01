@@ -316,40 +316,47 @@ class NurseryOperationExport
     {
         $row = $startRow;
         
+        $sigRanges = [
+            'prepared' => ['start' => 'B', 'end' => 'E'],
+            'reviewed' => ['start' => 'H', 'end' => 'K'],
+            'noted'    => ['start' => 'N', 'end' => 'R'],
+        ];
+        
         $prepLabel = $site?->prepared_by_label ?: 'Prepared by:';
         $revLabel = $site?->reviewed_by_label ?: 'Reviewed by:';
         $noteLabel = $site?->noted_by_label ?: 'Noted by:';
+        $labels = ['prepared' => $prepLabel, 'reviewed' => $revLabel, 'noted' => $noteLabel];
         
-        $sheet->setCellValue('B' . $row, $prepLabel);
-        $sheet->setCellValue('H' . $row, $revLabel);
-        $sheet->setCellValue('N' . $row, $noteLabel);
+        foreach ($sigRanges as $key => $range) {
+            $sheet->mergeCells("{$range['start']}{$row}:{$range['end']}{$row}");
+            $sheet->setCellValue($range['start'] . $row, $labels[$key]);
+            $sheet->getStyle("{$range['start']}{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        }
         
         $signatureRow = $row + 1;
-        $row += 4;
+        $sheet->getRowDimension($signatureRow)->setRowHeight(50);
+        foreach ($sigRanges as $range) {
+            $sheet->mergeCells("{$range['start']}{$signatureRow}:{$range['end']}{$signatureRow}");
+        }
+        $row += 2;
         
         $signatories = $this->resolveSignatories($site, $records);
         
-        $sheet->setCellValue('B' . $row, $signatories['prepared']['name']);
-        $sheet->setCellValue('H' . $row, $signatories['reviewed']['name']);
-        $sheet->setCellValue('N' . $row, $signatories['noted']['name']);
-        
-        $sheet->getStyle("B$row")->getFont()->setBold(true);
-        $sheet->getStyle("B$row")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-        $sheet->getStyle("H$row")->getFont()->setBold(true);
-        $sheet->getStyle("H$row")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-        $sheet->getStyle("N$row")->getFont()->setBold(true);
-        $sheet->getStyle("N$row")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        foreach ($sigRanges as $key => $range) {
+            $sheet->mergeCells("{$range['start']}{$row}:{$range['end']}{$row}");
+            $sheet->setCellValue($range['start'] . $row, $signatories[$key]['name']);
+            $sheet->getStyle("{$range['start']}{$row}")->getFont()->setBold(true);
+            $sheet->getStyle("{$range['start']}{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        }
         
         $row++;
-        $sheet->setCellValue('B' . $row, $signatories['prepared']['title']);
-        $sheet->setCellValue('H' . $row, $signatories['reviewed']['title']);
-        $sheet->setCellValue('N' . $row, $signatories['noted']['title']);
-        
-        $sheet->getStyle("B$row")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-        $sheet->getStyle("H$row")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-        $sheet->getStyle("N$row")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        foreach ($sigRanges as $key => $range) {
+            $sheet->mergeCells("{$range['start']}{$row}:{$range['end']}{$row}");
+            $sheet->setCellValue($range['start'] . $row, $signatories[$key]['title']);
+            $sheet->getStyle("{$range['start']}{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        }
 
-        $this->addSignatures($sheet, $signatureRow, $signatories, ['prepared' => 'B', 'reviewed' => 'H', 'noted' => 'N']);
+        $this->addSignatures($sheet, $signatureRow, $signatories, $sigRanges);
     }
 
     protected function resolveSignatories($site, array $records): array
@@ -387,9 +394,9 @@ class NurseryOperationExport
         return ['name' => '_______________________', 'title' => $defaultTitle, 'user' => null];
     }
 
-    protected function addSignatures(Worksheet $sheet, int $row, array $signatories, array $cols)
+    protected function addSignatures(Worksheet $sheet, int $row, array $signatories, array $sigRanges)
     {
-        foreach ($cols as $key => $col) {
+        foreach ($sigRanges as $key => $range) {
             $user = $signatories[$key]['user'] ?? null;
             if ($user && $user->signature_image) {
                 try {
@@ -400,9 +407,14 @@ class NurseryOperationExport
                         file_put_contents($tmp, $imgData);
                         $drawing = new Drawing();
                         $drawing->setPath($tmp);
-                        $drawing->setHeight(40);
-                        $drawing->setCoordinates($col . $row);
-                        $drawing->setOffsetX(45);
+                        $drawing->setHeight(60);
+                        $drawing->setCoordinates($range['start'] . $row);
+                        
+                        $totalWidth = $this->getColumnRangePixelWidth($sheet, $range['start'], $range['end']);
+                        $imgWidth = $drawing->getWidth();
+                        $offsetX = max(0, (int)(($totalWidth - $imgWidth) / 2));
+                        
+                        $drawing->setOffsetX($offsetX);
                         $drawing->setWorksheet($sheet);
                     }
                 } catch (\Exception $e) {
@@ -411,4 +423,23 @@ class NurseryOperationExport
             }
         }
     }
+
+    protected function getColumnRangePixelWidth(Worksheet $sheet, string $startCol, string $endCol): float
+    {
+        $totalWidth = 0;
+        $start = Coordinate::columnIndexFromString($startCol);
+        $end = Coordinate::columnIndexFromString($endCol);
+        
+        for ($i = $start; $i <= $end; $i++) {
+            $colLetter = Coordinate::stringFromColumnIndex($i);
+            $width = $sheet->getColumnDimension($colLetter)->getWidth();
+            if ($width < 0) {
+                $width = 8.43;
+            }
+            $totalWidth += ($width * 7) + 5;
+        }
+        
+        return $totalWidth;
+    }
 }
+
