@@ -259,7 +259,7 @@ class HybridDistributionExport
         }
         
         $signatureRow = $row + 1;
-        $sheet->getRowDimension($signatureRow)->setRowHeight(50);
+        $sheet->getRowDimension($signatureRow)->setRowHeight(38);
         foreach ($sigRanges as $range) {
             $sheet->mergeCells("{$range['start']}{$signatureRow}:{$range['end']}{$signatureRow}");
         }
@@ -332,14 +332,14 @@ class HybridDistributionExport
                         file_put_contents($tmp, $imgData);
                         $drawing = new Drawing();
                         $drawing->setPath($tmp);
-                        $drawing->setHeight(60);
-                        $drawing->setCoordinates($range['start'] . $row);
+                        $drawing->setHeight(45);
                         
-                        $totalWidth = $this->getColumnRangePixelWidth($sheet, $range['start'], $range['end']);
-                        $imgWidth = $drawing->getWidth();
-                        $offsetX = max(0, (int)(($totalWidth - $imgWidth) / 2));
+                        $startIdx = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($range['start']);
+                        $endIdx = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($range['end']);
+                        $midIdx = (int)ceil(($startIdx + $endIdx) / 2);
+                        $midCol = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($midIdx);
                         
-                        $drawing->setOffsetX($offsetX);
+                        $drawing->setCoordinates($midCol . $row);
                         $drawing->setWorksheet($sheet);
                     }
                 } catch (\Exception $e) {
@@ -347,24 +347,6 @@ class HybridDistributionExport
                 }
             }
         }
-    }
-
-    protected function getColumnRangePixelWidth(Worksheet $sheet, string $startCol, string $endCol): float
-    {
-        $totalWidth = 0;
-        $start = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($startCol);
-        $end = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($endCol);
-        
-        for ($i = $start; $i <= $end; $i++) {
-            $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($i);
-            $width = $sheet->getColumnDimension($colLetter)->getWidth();
-            if ($width < 0) {
-                $width = 8.43;
-            }
-            $totalWidth += ($width * 7) + 5;
-        }
-        
-        return $totalWidth;
     }
 }
 
