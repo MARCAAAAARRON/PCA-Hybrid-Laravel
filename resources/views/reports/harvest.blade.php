@@ -87,7 +87,12 @@
                 <td>
                     <div class="signature-box">
                         @if($signatories['prepared']?->signature_image)
-                            <img src="{{ Storage::disk('cloudinary')->url($signatories['prepared']->signature_image) }}" class="signature-img">
+                            @php $prepSigUrl = \App\Helpers\SignatureHelper::getSignatureUrl($signatories['prepared']->signature_image); @endphp
+                            @if($prepSigUrl)
+                                <img src="{{ $prepSigUrl }}" class="signature-img">
+                            @else
+                                <span style="font-style: italic; font-size: 8px; color: #666;">Digitally Signed</span>
+                            @endif
                         @endif
                         <div class="signatory-name">{{ $signatories['prepared']?->name ?? '________________' }}</div>
                         <div class="signature-line"></div>
@@ -98,7 +103,12 @@
                 <td>
                     <div class="signature-box">
                         @if($signatories['reviewed']?->signature_image)
-                            <img src="{{ Storage::disk('cloudinary')->url($signatories['reviewed']->signature_image) }}" class="signature-img">
+                            @php $revSigUrl = \App\Helpers\SignatureHelper::getSignatureUrl($signatories['reviewed']->signature_image); @endphp
+                            @if($revSigUrl)
+                                <img src="{{ $revSigUrl }}" class="signature-img">
+                            @else
+                                <span style="font-style: italic; font-size: 8px; color: #666;">Digitally Signed</span>
+                            @endif
                         @endif
                         <div class="signatory-name">{{ $signatories['reviewed']?->name ?? '________________' }}</div>
                         <div class="signature-line"></div>
@@ -109,7 +119,12 @@
                 <td>
                     <div class="signature-box">
                         @if($signatories['noted']?->signature_image)
-                            <img src="{{ Storage::disk('cloudinary')->url($signatories['noted']->signature_image) }}" class="signature-img">
+                            @php $notedSigUrl = \App\Helpers\SignatureHelper::getSignatureUrl($signatories['noted']->signature_image); @endphp
+                            @if($notedSigUrl)
+                                <img src="{{ $notedSigUrl }}" class="signature-img">
+                            @else
+                                <span style="font-style: italic; font-size: 8px; color: #666;">Digitally Signed</span>
+                            @endif
                         @endif
                         <div class="signatory-name">{{ $signatories['noted']?->name ?? '________________' }}</div>
                         <div class="signature-line"></div>

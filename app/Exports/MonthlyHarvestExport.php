@@ -309,11 +309,11 @@ class MonthlyHarvestExport
         $noteLabel = $site?->noted_by_label ?: 'Noted by:';
         $labels = ['prepared' => $prepLabel, 'reviewed' => $revLabel, 'noted' => $noteLabel];
         
-        // Label row — merge and center
+        // Label row — merge and left-align with indent
         foreach ($sigRanges as $key => $range) {
             $sheet->mergeCells("{$range['start']}{$row}:{$range['end']}{$row}");
             $sheet->setCellValue($range['start'] . $row, $labels[$key]);
-            $sheet->getStyle("{$range['start']}{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle("{$range['start']}{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT)->setIndent(2);
         }
         
         $signatureRow = $row + 1;
@@ -329,20 +329,20 @@ class MonthlyHarvestExport
         // Resolve signatories: FieldSite overrides → Record approval users → Blank
         $signatories = $this->resolveSignatories($site, $records);
         
-        // Name row — merge, bold, center
+        // Name row — merge, bold, left-align with indent
         foreach ($sigRanges as $key => $range) {
             $sheet->mergeCells("{$range['start']}{$row}:{$range['end']}{$row}");
             $sheet->setCellValue($range['start'] . $row, $signatories[$key]['name']);
             $sheet->getStyle("{$range['start']}{$row}")->getFont()->setBold(true);
-            $sheet->getStyle("{$range['start']}{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle("{$range['start']}{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT)->setIndent(2);
         }
         
         $row++;
-        // Title row — merge and center
+        // Title row — merge and left-align with indent
         foreach ($sigRanges as $key => $range) {
             $sheet->mergeCells("{$range['start']}{$row}:{$range['end']}{$row}");
             $sheet->setCellValue($range['start'] . $row, $signatories[$key]['title']);
-            $sheet->getStyle("{$range['start']}{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle("{$range['start']}{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT)->setIndent(2);
         }
 
         // Draw signature images
@@ -434,13 +434,13 @@ class MonthlyHarvestExport
                         $drawing->setPath($tmp);
                         $drawing->setHeight(45);
                         
-                        // Place at the middle column of the merge range for natural centering
-                        $startIdx = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($range['start']);
-                        $endIdx = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($range['end']);
-                        $midIdx = (int)ceil(($startIdx + $endIdx) / 2);
-                        $midCol = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($midIdx);
+                        // Anchor the image to the starting column to perfectly align with the left-aligned text
+                        $startCol = $range['start'];
                         
-                        $drawing->setCoordinates($midCol . $row);
+                        $drawing->setCoordinates($startCol . $row);
+                        
+                        // Shift the image right slightly to match the text indent
+                        $drawing->setOffsetX(20);
                         $drawing->setWorksheet($sheet);
                     }
                 } catch (\Exception $e) {

@@ -207,7 +207,7 @@
                         <h4
                             style="font-size: 1.05rem; font-weight: 700; color: #0369a1; margin-bottom: 0.5rem; line-height: 1.2;">
                             Generate<br />Report</h4>
-                        <a href="{{ App\Filament\Resources\ReportResource::getUrl('index') ?? '#' }}"
+                        <a href="{{ App\Filament\Pages\ReportsDashboard::getUrl() ?? '#' }}"
                             class="service-btn"
                             style="display: inline-flex; align-items: center; justify-content: center; border-width: 1px; border-style: solid; gap: 0.25rem; padding: 0.375rem 0; width: 70%; margin: 0 auto; border-radius: 0.5rem; font-size: 0.875rem; font-weight: 500; text-decoration: none; transition: all 0.2s;">
                             Apply <x-filament::icon icon="heroicon-o-arrow-right"
@@ -254,7 +254,7 @@
                     onmouseover="this.style.transform='translateY(-4px)'"
                     onmouseout="this.style.transform='translateY(0)'">
                     <div class="service-img-container" style="height: 8.5rem; position: relative;">
-                        <img src="{{ asset('images/card_nursery.png') }}"
+                        <img src="{{ asset('images/Coconut_Transport.jpg') }}"
                             style="width: 100%; height: 100%; object-fit: cover; border-bottom-right-radius: 5rem;"
                             alt="Hybrid Distribution" />
                     </div>
@@ -362,21 +362,7 @@
                                 style="font-size: 0.75rem; font-weight: 400; opacity: 0.8;">Transfer logs</span></span>
                     </a>
                 </li>
-                <li>
-                    <a href="{{ App\Filament\Pages\ReportsDashboard::getUrl() }}" class="quicklinks-item"
-                        style="display: flex; align-items: center; gap: 1rem; text-decoration: none; transition: color 0.2s;">
-                        <div class="quicklinks-item-bg"
-                            style="padding: 0.625rem; border-radius: 0.5rem; border-width: 1px; border-style: solid; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); transition: background-color 0.2s; background-color: #22c55e; border-color: #16a34a;">
-                            <x-filament::icon icon="heroicon-s-document-chart-bar"
-                                style="width: 1.25rem; height: 1.25rem; color: white;" />
-                        </div>
-                        <span class="quicklinks-item-title"
-                            style="font-weight: 700; font-size: 0.875rem; line-height: 1.25; transition: color 0.2s; color: #16a34a;">Excel
-                            Export Center<br /><span class="quicklinks-item-desc"
-                                style="font-size: 0.75rem; font-weight: 400; opacity: 0.8;">Standard
-                                reports</span></span>
-                    </a>
-                </li>
+
             </ul>
         </div>
     </div>

@@ -9,9 +9,11 @@ use App\Models\Scopes\FieldSiteScope;
 use App\Models\Traits\HasApprovalWorkflow;
 use App\Models\Traits\NotifiesOnRecordCreation;
 
+use App\Traits\LogsActivity;
+
 class NurseryOperation extends Model
 {
-    use HasApprovalWorkflow, NotifiesOnRecordCreation;
+    use HasApprovalWorkflow, NotifiesOnRecordCreation, LogsActivity;
 
     protected static function booted(): void
     {

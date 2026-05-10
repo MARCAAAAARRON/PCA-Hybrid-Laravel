@@ -14,11 +14,8 @@ class AdminSummaryStats extends BaseWidget
 
     protected function getColumns(): int
     {
-        $user = auth()->user();
-        if ($user?->isAdmin()) {
-            return 2;
-        }
-        return 1 + \App\Models\FieldSite::limit(2)->count();
+        $count = 1 + \App\Models\FieldSite::count();
+        return 1;
     }
 
     public static function canView(): bool
@@ -31,19 +28,7 @@ class AdminSummaryStats extends BaseWidget
         $user = auth()->user();
         $totalRecords = HybridizationRecord::count();
         
-        if ($user?->isAdmin()) {
-            return [
-                Stat::make('Total Records', $totalRecords)
-                    ->icon('heroicon-o-document-duplicate')
-                    ->extraAttributes(['class' => 'stat-gradient-4']), // Yellow ish from screenshot
-                    
-                Stat::make('Field Sites', FieldSite::count())
-                    ->icon('heroicon-o-map-pin')
-                    ->extraAttributes(['class' => 'stat-gradient-1']), // Pinkish from screenshot
-            ];
-        }
-
-        $sites = FieldSite::limit(2)->get();
+        $sites = FieldSite::all();
         
         $stats = [
             Stat::make('Total Records', $totalRecords)

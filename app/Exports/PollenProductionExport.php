@@ -284,10 +284,11 @@ class PollenProductionExport
         $noteLabel = $site?->noted_by_label ?: 'Noted by:';
         $labels = ['prepared' => $prepLabel, 'reviewed' => $revLabel, 'noted' => $noteLabel];
         
+        // Label row — merge and left-align with indent
         foreach ($sigRanges as $key => $range) {
             $sheet->mergeCells("{$range['start']}{$row}:{$range['end']}{$row}");
             $sheet->setCellValue($range['start'] . $row, $labels[$key]);
-            $sheet->getStyle("{$range['start']}{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle("{$range['start']}{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT)->setIndent(2);
         }
         
         $signatureRow = $row + 1;
@@ -298,19 +299,19 @@ class PollenProductionExport
         $row += 2;
         
         $signatories = $this->resolveSignatories($site, $records);
-        
+        // Name row — merge, bold, left-align with indent
         foreach ($sigRanges as $key => $range) {
             $sheet->mergeCells("{$range['start']}{$row}:{$range['end']}{$row}");
             $sheet->setCellValue($range['start'] . $row, $signatories[$key]['name']);
             $sheet->getStyle("{$range['start']}{$row}")->getFont()->setBold(true);
-            $sheet->getStyle("{$range['start']}{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle("{$range['start']}{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT)->setIndent(2);
         }
-        
         $row++;
+        // Title row — merge and left-align with indent
         foreach ($sigRanges as $key => $range) {
             $sheet->mergeCells("{$range['start']}{$row}:{$range['end']}{$row}");
             $sheet->setCellValue($range['start'] . $row, $signatories[$key]['title']);
-            $sheet->getStyle("{$range['start']}{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle("{$range['start']}{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT)->setIndent(2);
         }
 
         $this->addSignatures($sheet, $signatureRow, $signatories, $sigRanges);
@@ -371,14 +372,13 @@ class PollenProductionExport
                         file_put_contents($tmp, $imgData);
                         $drawing = new Drawing();
                         $drawing->setPath($tmp);
-                        $drawing->setHeight(45);
+                        // Anchor the image to the starting column to perfectly align with the left-aligned text
+                        $startCol = $range['start'];
                         
-                        $startIdx = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($range['start']);
-                        $endIdx = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($range['end']);
-                        $midIdx = (int)ceil(($startIdx + $endIdx) / 2);
-                        $midCol = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($midIdx);
+                        $drawing->setCoordinates($startCol . $row);
                         
-                        $drawing->setCoordinates($midCol . $row);
+                        // Shift the image right slightly to match the text indent
+                        $drawing->setOffsetX(20);
                         $drawing->setWorksheet($sheet);
                     }
                 } catch (\Exception $e) {

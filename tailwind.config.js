@@ -11,8 +11,21 @@ export default {
     ],
     theme: {
         extend: {
+            colors: {
+                pca: {
+                    darkest: '#028c42', // green-900
+                    dark: '#0b9e4f',    // green-800
+                    primary: '#028c42', // green-700
+                    mid: '#10b981',     // green-600
+                    light: '#34d399',   // green-500
+                    yellow: '#dfed1f',
+                    'yellow-dark': '#c5d11b',
+                    surface: '#f0fdf4',
+                }
+            },
             fontFamily: {
-                sans: ['Figtree', ...defaultTheme.fontFamily.sans],
+                sans: ['Sora', ...defaultTheme.fontFamily.sans],
+                serif: [...defaultTheme.fontFamily.serif],
             },
         },
     },

@@ -9,48 +9,65 @@ use Filament\Widgets\TableWidget as BaseWidget;
 
 class RecentSystemActivity extends BaseWidget
 {
-    protected static ?int $sort = 2;
-    protected int | string | array $columnSpan = 2;
-    protected static ?string $heading = 'Recent System Activity';
+    protected static ?int $sort = 6;
+    protected int | string | array $columnSpan = 'full';
+    protected static ?string $heading = 'Recent Portal Activity';
 
     public static function canView(): bool
     {
-        return auth()->user()?->isAdmin() ?? false;
+        return auth()->user()?->isManager() || auth()->user()?->isAdmin();
     }
 
     public function table(Table $table): Table
     {
         return $table
             ->query(
-                AuditLog::whereIn('action', ['login', 'logout'])
+                AuditLog::query()
+                    ->with('user')
                     ->latest()
-                    ->limit(7)
+                    ->whereHas('user', function ($query) {
+                        $user = auth()->user();
+                        if ($user->isSuperAdmin() || $user->isAdmin() || $user->isManager()) {
+                            // High-level roles see everything
+                            return $query->whereIn('role', ['admin', 'manager', 'supervisor', 'superadmin']);
+                        }
+                        return $query->where('id', $user->id);
+                    })
+                    ->limit(5)
             )
             ->columns([
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('TIMESTAMP')
-                    ->dateTime('M j, H:i'),
+                    ->dateTime('M j, H:i')
+                    ->description(fn (AuditLog $record): string => $record->created_at->diffForHumans()),
                 Tables\Columns\TextColumn::make('user.name')
                     ->label('USER')
-                    ->weight('bold'),
+                    ->weight('bold')
+                    ->description(fn (AuditLog $record): string => $record->user?->role_title ?? 'User'),
                 Tables\Columns\TextColumn::make('action')
                     ->label('ACTION')
                     ->badge()
                     ->color(fn (string $state): string => match ($state) {
-                        'login' => 'success',
-                        'logout' => 'gray',
-                        default => 'primary',
+                        'create', 'login' => 'success',
+                        'update', 'validate' => 'info',
+                        'delete', 'revision' => 'danger',
+                        'report', 'submit' => 'warning',
+                        default => 'gray',
                     })
-                    ->formatStateUsing(fn (string $state): string => ucfirst($state)),
-                Tables\Columns\TextColumn::make('ip_address')
-                    ->label('DETAILS')
-                    ->formatStateUsing(fn (string $state): string => "Ip: {$state}")
+                    ->formatStateUsing(fn (string $state): string => AuditLog::ACTION_CHOICES[$state] ?? ucfirst($state)),
+                Tables\Columns\TextColumn::make('model_name')
+                    ->label('MODULE')
+                    ->formatStateUsing(fn (string $state): string => str_replace('App\\Models\\', '', $state))
                     ->color('gray'),
+                Tables\Columns\TextColumn::make('formatted_details')
+                    ->label('DETAILS')
+                    ->limit(50)
+                    ->tooltip(fn (AuditLog $record): string => $record->formatted_details),
             ])
             ->paginated(false)
             ->headerActions([
                 Tables\Actions\Action::make('view_full_log')
-                    ->label('View Full Log')
+                    ->label('View Audit Trail')
                     ->url(\App\Filament\Resources\AuditLogResource::getUrl('index'))
                     ->button()
                     ->outlined(),

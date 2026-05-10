@@ -10,7 +10,7 @@
             </h2>
         </div>
 
-        <div class="space-y-4 px-1">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 px-1">
             @forelse ($this->getActivities() as $activity)
                 <div class="relative pl-3 border-l-2 @if($activity['color'] == 'success') border-green-500 @elseif($activity['color'] == 'primary') border-blue-500 @elseif($activity['color'] == 'info') border-purple-500 @elseif($activity['color'] == 'warning') border-orange-500 @else border-gray-300 @endif pb-2">
                     <div class="flex justify-between items-start mb-1">
@@ -61,7 +61,7 @@
                 color="gray"
                 size="sm"
                 outlined
-                class="w-full justify-center"
+                class="px-10"
             >
                 View All Activity
             </x-filament::button>

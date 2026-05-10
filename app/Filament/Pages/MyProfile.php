@@ -43,74 +43,93 @@ class MyProfile extends BreezyProfilePage
     {
         return $form
             ->schema([
-                Section::make('Profile Information')
-                    ->icon('heroicon-o-user-circle')
-                    ->schema([
-                        Grid::make(3)
+                \Filament\Forms\Components\Tabs::make('Profile Tabs')
+                    ->tabs([
+                        \Filament\Forms\Components\Tabs\Tab::make('Profile Info')
+                            ->icon('heroicon-o-user-circle')
                             ->schema([
-                                TextInput::make('first_name')
-                                    ->label('First Name')
-                                    ->required(),
-                                TextInput::make('middle_initial')
-                                    ->label('M.I.')
-                                    ->maxLength(10),
-                                TextInput::make('last_name')
-                                    ->label('Last Name')
-                                    ->required(),
+                                Section::make('General Information')
+                                    ->schema([
+                                        Grid::make(3)
+                                            ->schema([
+                                                TextInput::make('first_name')
+                                                    ->label('First Name')
+                                                    ->placeholder('Enter first name')
+                                                    ->required(),
+                                                TextInput::make('middle_initial')
+                                                    ->label('M.I.')
+                                                    ->placeholder('M.I.')
+                                                    ->maxLength(10),
+                                                TextInput::make('last_name')
+                                                    ->label('Last Name')
+                                                    ->placeholder('Enter last name')
+                                                    ->required(),
+                                            ]),
+                                        TextInput::make('email')
+                                            ->label('Email Address')
+                                            ->placeholder('example@email.com')
+                                            ->email()
+                                            ->required()
+                                            ->unique('users', 'email', ignorable: auth()->user()),
+                                    ]),
                             ]),
-                        TextInput::make('email')
-                            ->label('Email')
-                            ->email()
-                            ->required()
-                            ->unique('users', 'email', ignorable: auth()->user()),
-                    ]),
-                
-                Section::make('Digital Signature')
-                    ->icon('heroicon-o-pencil')
-                    ->schema([
-                        FileUpload::make('signature_image')
-                            ->label('Digital Signature')
-                            ->image()
-                            ->disk('cloudinary')
-                            ->directory('signatures')
-                            ->imageEditor()
-                            ->imageEditorAspectRatios([
-                                null,
-                                '16:9',
-                                '4:3',
-                                '1:1',
-                            ])
-                            ->extraInputAttributes(['capture' => 'environment'])
-                            ->disabled(fn () => !auth()->user()->canUpdateSignature())
-                            ->helperText(fn () => auth()->user()->canUpdateSignature()
-                                ? 'Snap/Upload your signature. IMPORTANT: Click the PENCIL icon on the image to CROP it before saving.'
-                                : 'You can only update your digital signature once every 3 months. Next update available: ' . auth()->user()->signature_updated_at->addMonths(3)->format('M d, Y')
-                            ),
-                    ]),
-                
-                Section::make('Change Password')
-                    ->icon('heroicon-o-key')
-                    ->description('Leave blank to keep current password')
-                    ->schema([
-                        TextInput::make('current_password')
-                            ->label('Current Password')
-                            ->password()
-                            ->revealable()
-                            ->requiredWith('new_password')
-                            ->currentPassword()
-                            ->visible(fn() => filament('filament-breezy')->getPasswordUpdateRequiresCurrent()),
-                        TextInput::make('new_password')
-                            ->label('New Password')
-                            ->password()
-                            ->revealable()
-                            ->rule(Password::default()),
-                        TextInput::make('new_password_confirmation')
-                            ->label('Confirm Password')
-                            ->password()
-                            ->revealable()
-                            ->same('new_password')
-                            ->requiredWith('new_password'),
-                    ])->compact(),
+                        
+                        \Filament\Forms\Components\Tabs\Tab::make('Digital Signature')
+                            ->icon('heroicon-o-pencil')
+                            ->schema([
+                                Section::make('Signature Management')
+                                    ->description('This signature will be used for automated report signing.')
+                                    ->schema([
+                                        FileUpload::make('signature_image')
+                                            ->label('Upload/Snap Signature')
+                                            ->image()
+                                            ->disk('cloudinary')
+                                            ->directory('signatures')
+                                            ->imageEditor()
+                                            ->imageEditorAspectRatios([
+                                                null,
+                                                '16:9',
+                                                '4:3',
+                                                '1:1',
+                                            ])
+                                            ->extraInputAttributes(['capture' => 'environment'])
+                                            ->disabled(fn () => !auth()->user()->canUpdateSignature())
+                                            ->helperText(fn () => auth()->user()->canUpdateSignature()
+                                                ? 'Snap/Upload your signature. IMPORTANT: Click the PENCIL icon on the image to CROP it before saving.'
+                                                : 'You can only update your digital signature once every 3 months. Next update available: ' . auth()->user()->signature_updated_at->addMonths(3)->format('M d, Y')
+                                            ),
+                                    ]),
+                            ]),
+                        
+                        \Filament\Forms\Components\Tabs\Tab::make('Security Settings')
+                            ->icon('heroicon-o-key')
+                            ->schema([
+                                Section::make('Change Password')
+                                    ->description('Ensure your account is using a long, random password to stay secure.')
+                                    ->schema([
+                                        TextInput::make('current_password')
+                                            ->label('Current Password')
+                                            ->password()
+                                            ->revealable()
+                                            ->requiredWith('new_password')
+                                            ->currentPassword()
+                                            ->visible(fn() => filament('filament-breezy')->getPasswordUpdateRequiresCurrent()),
+                                        TextInput::make('new_password')
+                                            ->label('New Password')
+                                            ->password()
+                                            ->revealable()
+                                            ->rule(Password::default()),
+                                        TextInput::make('new_password_confirmation')
+                                            ->label('Confirm New Password')
+                                            ->password()
+                                            ->revealable()
+                                            ->same('new_password')
+                                            ->requiredWith('new_password'),
+                                    ]),
+                            ]),
+                    ])
+                    ->columnSpanFull()
+                    ->persistTabInQueryString(),
             ])
             ->statePath('data');
     }

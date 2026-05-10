@@ -13,6 +13,7 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 
 class TerminalResource extends Resource implements HasShieldPermissions
 {
@@ -339,9 +340,13 @@ class TerminalResource extends Resource implements HasShieldPermissions
             ])
             ->defaultSort('report_month', 'desc')
             ->actions([
-                Tables\Actions\ViewAction::make(),
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                Tables\Actions\EditAction::make()
+                    ->visible(fn (Model $record) => $record->isDraft() && auth()->user()?->isSupervisor()),
+                Tables\Actions\DeleteAction::make()
+                    ->visible(fn (Model $record) => 
+                        ($record->isDraft() && auth()->user()?->isSupervisor()) ||
+                        ($record->isNoted() && in_array(auth()->user()?->role, ['admin', 'superadmin']))
+                    ),
                 ...self::getApprovalActions(),
             ])
             ->bulkActions([
@@ -349,79 +354,7 @@ class TerminalResource extends Resource implements HasShieldPermissions
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
             ])
-            ->headerActions([
-                Tables\Actions\ExportAction::make()
-                    ->exporter(\App\Filament\Exports\NurseryOperationExporter::class),
-                Tables\Actions\Action::make('formattedExport')
-                    ->label('Formatted Export (Excel)')
-                    ->icon('heroicon-o-document-chart-bar')
-                    ->color('success')
-                    ->form([
-                        Forms\Components\Select::make('year')
-                            ->options(fn () => collect(range(now()->year, 2024, -1))
-                                ->mapWithKeys(fn ($y) => [$y => $y]))
-                            ->default(now()->year)
-                            ->required(),
-                        Forms\Components\Select::make('month')
-                            ->options([
-                                1 => 'January', 2 => 'February', 3 => 'March',
-                                4 => 'April', 5 => 'May', 6 => 'June',
-                                7 => 'July', 8 => 'August', 9 => 'September',
-                                10 => 'October', 11 => 'November', 12 => 'December',
-                            ])
-                            ->nullable()
-                            ->live(),
-                        Forms\Components\Radio::make('export_range')
-                            ->label('Export Coverage')
-                            ->options([
-                                'single' => 'Selected Month Only',
-                                'cumulative' => 'Cumulative (Jan to Selected Month)',
-                            ])
-                            ->default('single')
-                            ->inline()
-                            ->visible(fn (Forms\Get $get) => filled($get('month'))),
-                        Forms\Components\Select::make('field_site_id')
-                            ->label('Field Site')
-                            ->relationship('fieldSite', 'name')
-                            ->nullable()
-                            ->searchable()
-                            ->preload()
-                            ->hidden(fn () => auth()->user()?->isSupervisor())
-                            ->default(fn () => auth()->user()?->isSupervisor() ? auth()->user()->field_site_id : null),
-                    ])
-                    ->action(function (array $data) {
-                        $query = \App\Models\NurseryOperation::query()->where('report_type', 'terminal');
-                        
-                        $query->whereYear('report_month', $data['year']);
-                        
-                        if ($data['month']) {
-                            if (($data['export_range'] ?? 'single') === 'cumulative') {
-                                $query->whereMonth('report_month', '<=', $data['month']);
-                            } else {
-                                $query->whereMonth('report_month', $data['month']);
-                            }
-                        }
-                        
-                        if (auth()->user()?->isSupervisor()) {
-                            $query->where('field_site_id', auth()->user()->field_site_id);
-                        } elseif ($data['field_site_id']) {
-                            $query->where('field_site_id', $data['field_site_id']);
-                        }
-                        
-                        $records = $query->with(['fieldSite', 'batches.varieties'])->get();
-                        
-                        if ($records->isEmpty()) {
-                            \Filament\Notifications\Notification::make()
-                                ->warning()
-                                ->title('No records found for the selected filters.')
-                                ->send();
-                            return;
-                        }
-
-                        $isCumulative = ($data['export_range'] ?? 'single') === 'cumulative';
-                        return (new \App\Exports\NurseryOperationExport($records, $data['year'], $data['month'], $isCumulative))->export();
-                    }),
-            ]);
+            ;
     }
 
     public static function getEloquentQuery(): Builder

@@ -12,10 +12,11 @@ use App\Models\Scopes\FieldSiteScope;
 use App\Models\Traits\HasApprovalWorkflow;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Carbon\Carbon;
+use App\Traits\LogsActivity;
 
 class HybridizationRecord extends Model implements HasMedia
 {
-    use InteractsWithMedia, HasApprovalWorkflow;
+    use InteractsWithMedia, HasApprovalWorkflow, LogsActivity;
 
     /**
      * Average months from planting/pollination to harvest readiness.

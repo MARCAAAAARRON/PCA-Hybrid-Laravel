@@ -13,7 +13,7 @@ class Dashboard extends BaseDashboard
 {
     public function getColumns(): int | string | array
     {
-        return 3;
+        return 1;
     }
 
     public function getTitle(): string|Htmlable

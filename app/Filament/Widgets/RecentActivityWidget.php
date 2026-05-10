@@ -12,7 +12,7 @@ use Illuminate\Support\Collection;
 class RecentActivityWidget extends Widget
 {
     protected static ?int $sort = 3;
-    protected int | string | array $columnSpan = 1;
+    protected int | string | array $columnSpan = 'full';
     protected static string $view = 'filament.widgets.recent-activity-widget';
 
     public static function canView(): bool

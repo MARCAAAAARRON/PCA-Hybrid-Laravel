@@ -12,9 +12,9 @@ class SiteProductionRankingChart extends ChartWidget
 {
     protected static ?string $heading = '🏆 Site Production Ranking';
 
-    protected static ?int $sort = 7;
-    protected int | string | array $columnSpan = ['default' => 'full', 'lg' => 1];
-    protected static ?string $maxHeight = '200px';
+    protected static ?int $sort = -7;
+    protected int | string | array $columnSpan = 'full';
+    protected static ?string $maxHeight = '400px';
 
     public static function canView(): bool
     {

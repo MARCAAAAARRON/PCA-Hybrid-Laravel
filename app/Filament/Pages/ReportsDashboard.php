@@ -21,10 +21,159 @@ class ReportsDashboard extends Page implements HasForms
 
     protected static string $view = 'filament.pages.reports-dashboard';
 
+    public static function canAccess(): bool
+    {
+        return in_array(auth()->user()?->role, ['supervisor', 'manager', 'admin']);
+    }
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return in_array(auth()->user()?->role, ['supervisor', 'manager', 'admin']);
+    }
+
     public ?array $data = [];
     public $reportData = null; // Contains the queried records
     public $rawReportData = null; // Contains raw queried records for export
     public $reportFarms = null; // For aggregated data
+    public bool $showModal = false; // Controls floating report modal
+    public int $currentPage = 0; // Current page index for multi-site navigation
+    public bool $batchMode = false; // Batch generation: fetch all field sites
+    public array $siteNames = []; // Maps site_id => site_name for tab labels
+    public array $siteIds = []; // Ordered list of site IDs for tab navigation
+
+    // Full Package Mode
+    public bool $fullPackageMode = false;
+    public array $fullPackageData = []; // [category => [site_id => {records, farms}]]
+    public string $activeCategory = 'monthly_harvest'; // Active category tab in full package
+
+    protected const CATEGORY_LABELS = [
+        'monthly_harvest'    => 'Monthly Harvest',
+        'pollen_production'  => 'Pollen Production',
+        'hybrid_distribution'=> 'Hybrid Distribution',
+        'nursery_operation'  => 'Nursery Operations',
+        'terminal_report'    => 'Terminal Reports',
+    ];
+
+    protected const CATEGORY_ICONS = [
+        'monthly_harvest'    => 'heroicon-o-sun',
+        'pollen_production'  => 'heroicon-o-sparkles',
+        'hybrid_distribution'=> 'heroicon-o-arrows-right-left',
+        'nursery_operation'  => 'heroicon-o-beaker',
+        'terminal_report'    => 'heroicon-o-clipboard-document-list',
+    ];
+
+    public function openReportModal(): void
+    {
+        $this->showModal = true;
+    }
+
+    public function firstPage(): void
+    {
+        $this->currentPage = 0;
+    }
+
+    public function lastPage(): void
+    {
+        $this->currentPage = count($this->reportData) - 1;
+    }
+
+    public function goToPage(int $index): void
+    {
+        if ($index >= 0 && $index < count((array) $this->reportData)) {
+            $this->currentPage = $index;
+        }
+    }
+
+    public function switchCategory(string $category): void
+    {
+        if (isset($this->fullPackageData[$category])) {
+            $this->activeCategory = $category;
+            // Sync reportData to the selected category's data
+            $this->reportData = $this->fullPackageData[$category];
+            $siteIdList = array_keys($this->fullPackageData[$category]);
+            $this->siteIds = $siteIdList;
+            $this->currentPage = 0;
+        }
+    }
+
+    public function generateFullPackage(): void
+    {
+        $data = $this->form->getState();
+        
+        $year = $data['year'];
+        $month = $data['month'] ?? null;
+        $exportRange = $data['export_range'] ?? 'single';
+        $fieldSiteId = auth()->user()?->isSupervisor() ? auth()->user()->field_site_id : ($data['field_site_id'] ?? null);
+
+        $categories = [
+            'monthly_harvest'     => \App\Models\MonthlyHarvest::query()->with(['fieldSite', 'varieties']),
+            'pollen_production'   => \App\Models\PollenProduction::query()->with(['fieldSite']),
+            'hybrid_distribution' => \App\Models\HybridDistribution::query()->with(['fieldSite']),
+            'nursery_operation'   => \App\Models\NurseryOperation::query()->where('report_type', 'operation')->with(['fieldSite', 'batches.varieties']),
+            'terminal_report'     => \App\Models\NurseryOperation::query()->where('report_type', 'terminal')->with(['fieldSite', 'batches.varieties']),
+        ];
+
+        $this->fullPackageData = [];
+        $allSiteIds = [];
+
+        foreach ($categories as $cat => $query) {
+            $query->whereYear('report_month', $year);
+
+            // Selective month filtering: Apply month ONLY to monthly reports
+            if ($month && in_array($cat, ['monthly_harvest', 'pollen_production', 'hybrid_distribution'])) {
+                if ($exportRange === 'cumulative') {
+                    $query->whereMonth('report_month', '<=', $month);
+                } else {
+                    $query->whereMonth('report_month', $month);
+                }
+            }
+
+            if ($fieldSiteId) {
+                $query->where('field_site_id', $fieldSiteId);
+            }
+
+            $records = $query->get();
+            $grouped = $records->groupBy('field_site_id');
+
+            $catData = [];
+            foreach ($grouped as $siteId => $siteRecords) {
+                $catData[$siteId] = [
+                    'records' => $siteRecords,
+                    'farms'   => $cat === 'monthly_harvest' ? $this->groupHarvestData($siteRecords) : null,
+                ];
+                $allSiteIds[] = $siteId;
+            }
+
+            $this->fullPackageData[$cat] = $catData;
+        }
+
+        // Build unified site name map
+        $uniqueSiteIds = array_unique($allSiteIds);
+        $this->siteNames = \App\Models\FieldSite::whereIn('id', $uniqueSiteIds)
+            ->pluck('name', 'id')->toArray();
+
+        if (empty($this->fullPackageData)) {
+            \Filament\Notifications\Notification::make()->warning()->title('No records found for the selected period.')->send();
+            return;
+        }
+
+        // Start on first category that has data
+        $this->activeCategory = 'monthly_harvest';
+        foreach (array_keys(self::CATEGORY_LABELS) as $cat) {
+            if (!empty($this->fullPackageData[$cat])) {
+                $this->activeCategory = $cat;
+                break;
+            }
+        }
+
+        // Sync reportData to the first active category
+        $this->reportData = $this->fullPackageData[$this->activeCategory];
+        $siteIdList = array_keys($this->reportData);
+        $this->siteIds = $siteIdList;
+        $this->currentPage = 0;
+        $this->fullPackageMode = true;
+        $this->showModal = true;
+    }
 
     #[\Livewire\Attributes\Url]
     public ?string $category = null;
@@ -77,7 +226,7 @@ class ReportsDashboard extends Page implements HasForms
             'export_range' => (($reqMonth ?? $latestMonth) && ($reqMonth ?? $latestMonth) > 1) ? 'cumulative' : 'single',
             'field_site_id' => $reqSiteId ?? (auth()->user()?->isSupervisor() ? auth()->user()->field_site_id : null),
         ]);
-        
+
         if ($this->category) {
             $this->generateReport();
         }
@@ -86,58 +235,97 @@ class ReportsDashboard extends Page implements HasForms
     public function form(Form $form): Form
     {
         return $form->schema([
-            Components\Section::make('Report Filters')->schema([
-                Components\Select::make('category')
-                    ->label('Report Category')
-                    ->options([
-                        'monthly_harvest' => 'Monthly Harvest',
-                        'pollen_production' => 'Pollen Production',
-                        'hybrid_distribution' => 'Hybrid Distribution',
-                        'nursery_operation' => 'Nursery Operations',
-                        'terminal_report' => 'Terminal Reports',
-                    ])
-                    ->required()
-                    ->live(),
-                Components\Select::make('year')
-                    ->options(fn () => collect(range(now()->year, 2024, -1))->mapWithKeys(fn ($y) => [$y => $y]))
-                    ->required(),
-                Components\Select::make('month')
-                    ->options([
-                        1 => 'January', 2 => 'February', 3 => 'March',
-                        4 => 'April', 5 => 'May', 6 => 'June',
-                        7 => 'July', 8 => 'August', 9 => 'September',
-                        10 => 'October', 11 => 'November', 12 => 'December',
-                    ])
-                    ->nullable()
-                    ->live()
-                    ->afterStateUpdated(function (\Filament\Forms\Set $set, $state) {
-                        if ($state == 1) {
-                            $set('export_range', 'single');
-                        }
-                    }),
-                Components\Radio::make('export_range')
-                    ->label('Export Coverage')
-                    ->options([
-                        'single' => 'Selected Month Only',
-                        'cumulative' => 'Cumulative (Jan to Selected Month)',
-                    ])
-                    ->inline()
-                    ->disableOptionWhen(fn (string $value, \Filament\Forms\Get $get) => $value === 'cumulative' && $get('month') == 1)
-                    ->visible(fn (\Filament\Forms\Get $get) => filled($get('month'))),
-                Components\Select::make('field_site_id')
-                    ->label('Field Site')
-                    ->options(\App\Models\FieldSite::pluck('name', 'id'))
-                    ->nullable()
-                    ->searchable()
-                    ->preload()
-                    ->hidden(fn () => auth()->user()?->isSupervisor()),
-            ])->columns(3),
+            Components\Section::make('Report Filters')
+                ->extraAttributes(['style' => 'overflow: visible'])
+                ->schema([
+                    Components\Radio::make('report_type')
+                        ->label('Report Type')
+                        ->options([
+                            'single' => 'Specific Category Report',
+                            'full_package' => 'Full Monthly Package (All Categories & Sites)',
+                        ])
+                        ->default('single')
+                        ->inline()
+                        ->live()
+                        ->columnSpanFull(),
+                    Components\Select::make('category')
+                        ->label('Report Category')
+                        ->options([
+                            'monthly_harvest' => 'Monthly Harvest',
+                            'pollen_production' => 'Pollen Production',
+                            'hybrid_distribution' => 'Hybrid Distribution',
+                            'nursery_operation' => 'Nursery Operations',
+                            'terminal_report' => 'Terminal Reports',
+                        ])
+                        ->visible(fn (\Filament\Forms\Get $get) => $get('report_type') === 'single')
+                        ->live(),
+                    Components\Select::make('year')
+                        ->options(fn() => collect(range(now()->year, 2024, -1))->mapWithKeys(fn($y) => [$y => $y]))
+                        ->required(),
+                    Components\Select::make('month')
+                        ->options([
+                            1 => 'January',
+                            2 => 'February',
+                            3 => 'March',
+                            4 => 'April',
+                            5 => 'May',
+                            6 => 'June',
+                            7 => 'July',
+                            8 => 'August',
+                            9 => 'September',
+                            10 => 'October',
+                            11 => 'November',
+                            12 => 'December',
+                        ])
+                        ->nullable()
+                        ->live()
+                        ->afterStateUpdated(function (\Filament\Forms\Set $set, $state) {
+                            if ($state == 1) {
+                                $set('export_range', 'single');
+                            }
+                        }),
+                    Components\Radio::make('export_range')
+                        ->label('Export Coverage')
+                        ->options([
+                            'single' => 'Selected Month Only',
+                            'cumulative' => 'Cumulative (Jan to Selected Month)',
+                        ])
+                        ->inline()
+                        ->disableOptionWhen(fn(string $value, \Filament\Forms\Get $get) => $value === 'cumulative' && $get('month') == 1)
+                        ->visible(fn(\Filament\Forms\Get $get) => filled($get('month'))),
+                    Components\Select::make('field_site_id')
+                        ->label('Field Site')
+                        ->options(\App\Models\FieldSite::pluck('name', 'id'))
+                        ->nullable()
+                        ->searchable()
+                        ->preload()
+                        ->columnSpanFull()
+                        ->hidden(fn(\Filament\Forms\Get $get) => $get('report_type') !== 'single' || auth()->user()?->isSupervisor() || $get('batch_mode')),
+                    Components\Toggle::make('batch_mode')
+                        ->label('Include All Field Sites')
+                        ->helperText('Fetches records from every field site for the selected category.')
+                        ->columnSpanFull()
+                        ->live()
+                        ->afterStateUpdated(function (\Filament\Forms\Set $set, $state) {
+                            if ($state) {
+                                $set('field_site_id', null);
+                            }
+                            $this->batchMode = (bool) $state;
+                        })
+                        ->visible(fn(\Filament\Forms\Get $get) => $get('report_type') === 'single' && !auth()->user()?->isSupervisor()),
+                ])->columns(2),
         ])->statePath('data');
     }
 
     public function generateReport()
     {
         $data = $this->form->getState();
+        
+        if (empty($data['category'])) {
+            \Filament\Notifications\Notification::make()->danger()->title('Please select a report category first.')->send();
+            return;
+        }
+
         $query = null;
 
         switch ($data['category']) {
@@ -158,11 +346,13 @@ class ReportsDashboard extends Page implements HasForms
                 break;
         }
 
-        if (!$query) return;
+        if (!$query)
+            return;
 
         $query->whereYear('report_month', $data['year']);
-        
-        if ($data['month']) {
+
+        // Selective month filtering: Apply month ONLY to monthly reports
+        if (!empty($data['month']) && in_array($data['category'], ['monthly_harvest', 'pollen_production', 'hybrid_distribution'])) {
             if (($data['export_range'] ?? 'single') === 'cumulative') {
                 $query->whereMonth('report_month', '<=', $data['month']);
             } else {
@@ -172,7 +362,8 @@ class ReportsDashboard extends Page implements HasForms
 
         if (auth()->user()?->isSupervisor()) {
             $query->where('field_site_id', auth()->user()->field_site_id);
-        } elseif (!empty($data['field_site_id'])) {
+        } elseif (!$this->batchMode && !empty($data['field_site_id'])) {
+            // In batch mode, skip the field_site_id filter to fetch all sites
             $query->where('field_site_id', $data['field_site_id']);
         }
 
@@ -182,6 +373,8 @@ class ReportsDashboard extends Page implements HasForms
             \Filament\Notifications\Notification::make()->warning()->title('No records found for the selected filters.')->send();
             $this->reportData = null;
             $this->reportFarms = null;
+            $this->siteNames = [];
+            $this->siteIds = [];
             return;
         }
 
@@ -189,20 +382,55 @@ class ReportsDashboard extends Page implements HasForms
         $this->reportData = [];
 
         $grouped = $records->groupBy('field_site_id');
-        
+
+        // Build the named site map for tab navigation
+        $siteIdList = $grouped->keys()->toArray();
+        $this->siteIds = $siteIdList;
+        $this->siteNames = \App\Models\FieldSite::whereIn('id', $siteIdList)
+            ->pluck('name', 'id')
+            ->toArray();
+
         foreach ($grouped as $siteId => $siteRecords) {
             $siteData = [
                 'records' => $siteRecords,
                 'farms' => null,
             ];
-            
+
             // Group data based on category
             if ($data['category'] === 'monthly_harvest') {
                 $siteData['farms'] = $this->groupHarvestData($siteRecords);
             }
-            
+
             $this->reportData[$siteId] = $siteData;
         }
+
+        // Open the floating modal and reset to first page
+        $this->currentPage = 0;
+        $this->showModal = true;
+    }
+
+    public function closeModal(): void
+    {
+        $this->showModal = false;
+    }
+
+    public function nextPage(): void
+    {
+        if ($this->reportData && $this->currentPage < count($this->reportData) - 1) {
+            $this->currentPage++;
+        }
+    }
+
+    public function prevPage(): void
+    {
+        if ($this->currentPage > 0) {
+            $this->currentPage--;
+        }
+    }
+
+    public function getTotalPagesProperty(): int
+    {
+        return $this->reportData ? count($this->reportData) : 0;
     }
 
     protected function groupHarvestData($records)
@@ -221,14 +449,14 @@ class ReportsDashboard extends Page implements HasForms
                     'varieties' => [],
                 ];
             }
-            
+
             $relations = $rec->varieties;
-            
+
             foreach ($relations as $v) {
                 $varietyValue = $v->variety ?? '';
                 $typeValue = $v->seednuts_type ?? '';
                 $varKey = $varietyValue . '|' . $typeValue;
-                
+
                 if (!isset($farms[$key]['varieties'][$varKey])) {
                     $farms[$key]['varieties'][$varKey] = [
                         'variety' => $varietyValue,
@@ -250,7 +478,7 @@ class ReportsDashboard extends Page implements HasForms
             ->label('Share via Email')
             ->icon('heroicon-o-envelope')
             ->color('success')
-            ->visible(fn () => in_array(auth()->user()?->role, ['manager', 'admin', 'superadmin']))
+            ->visible(fn() => in_array(auth()->user()?->role, ['manager', 'admin']))
             ->color('success')
             ->form([
                 \Filament\Forms\Components\TextInput::make('email')
@@ -262,46 +490,101 @@ class ReportsDashboard extends Page implements HasForms
             ->action(function (array $data) {
                 set_time_limit(120);
                 $formData = $this->form->getState();
-                if (!$this->rawReportData || $this->rawReportData->isEmpty()) {
-                    \Filament\Notifications\Notification::make()->danger()->title('No data to export.')->send();
-                    return;
+                $isCumulative = ($formData['export_range'] ?? 'single') === 'cumulative';
+                
+                $unnotedRecords = collect();
+                $exporter = null;
+                $filename = 'Report.xlsx';
+
+                if ($this->fullPackageMode) {
+                    foreach ($this->fullPackageData as $cat => $sites) {
+                        foreach ($sites as $siteId => $siteData) {
+                            if (isset($siteData['records'])) {
+                                $unnotedRecords = $unnotedRecords->merge($siteData['records']->where('status', '!=', 'noted'));
+                            }
+                        }
+                    }
+                    
+                    if ($unnotedRecords->isEmpty()) {
+                        $exporter = new \App\Exports\FullPackageExport($this->fullPackageData, $formData['year'], $formData['month'], $isCumulative);
+                        $period = $formData['month'] ? \Carbon\Carbon::create($formData['year'], $formData['month'], 1)->format('F_Y') : $formData['year'];
+                        $filename = 'Full_Report_Package_' . $period . '.xlsx';
+                    }
+                } else {
+                    // Re-apply filters to ensure we are validating/sharing ONLY the currently selected data
+                    $query = null;
+                    switch ($formData['category']) {
+                        case 'monthly_harvest': $query = \App\Models\MonthlyHarvest::query(); break;
+                        case 'pollen_production': $query = \App\Models\PollenProduction::query(); break;
+                        case 'hybrid_distribution': $query = \App\Models\HybridDistribution::query(); break;
+                        case 'nursery_operation': $query = \App\Models\NurseryOperation::query()->where('report_type', 'operation'); break;
+                        case 'terminal_report': $query = \App\Models\NurseryOperation::query()->where('report_type', 'terminal'); break;
+                    }
+
+                    if (!$query) return;
+
+                    $query->whereYear('report_month', $formData['year']);
+                    
+                    // Selective month filtering for share/export validation
+                    if (!empty($formData['month']) && in_array($formData['category'], ['monthly_harvest', 'pollen_production', 'hybrid_distribution'])) {
+                        if (($formData['export_range'] ?? 'single') === 'cumulative') {
+                            $query->whereMonth('report_month', '<=', $formData['month']);
+                        } else {
+                            $query->whereMonth('report_month', $formData['month']);
+                        }
+                    }
+
+                    if (auth()->user()?->isSupervisor()) {
+                        $query->where('field_site_id', auth()->user()->field_site_id);
+                    } elseif (!$this->batchMode && !empty($formData['field_site_id'])) {
+                        $query->where('field_site_id', $formData['field_site_id']);
+                    }
+
+                    $activeRecords = $query->get();
+
+                    if ($activeRecords->isEmpty()) {
+                        \Filament\Notifications\Notification::make()->danger()->title('No data to export.')->send();
+                        return;
+                    }
+
+                    $unnotedRecords = $activeRecords->where('status', '!=', 'noted');
+
+                    if ($unnotedRecords->isEmpty()) {
+                        switch ($formData['category']) {
+                            case 'monthly_harvest':
+                                $exporter = new \App\Exports\MonthlyHarvestExport($activeRecords, $formData['year'], $formData['month'], $isCumulative);
+                                $filename = 'Monthly_Harvest.xlsx';
+                                break;
+                            case 'pollen_production':
+                                $exporter = new \App\Exports\PollenProductionExport($activeRecords, $formData['year'], $formData['month'], $isCumulative);
+                                $filename = 'Pollen_Production.xlsx';
+                                break;
+                            case 'hybrid_distribution':
+                                $exporter = new \App\Exports\HybridDistributionExport($activeRecords, $formData['year'], $formData['month'], $isCumulative);
+                                $filename = 'Hybrid_Distribution.xlsx';
+                                break;
+                            case 'nursery_operation':
+                                $exporter = new \App\Exports\NurseryOperationExport($activeRecords, $formData['year'], $formData['month'], $isCumulative);
+                                $filename = 'Nursery_Operation.xlsx';
+                                break;
+                            case 'terminal_report':
+                                $exporter = new \App\Exports\NurseryOperationExport($activeRecords, $formData['year'], $formData['month'], $isCumulative);
+                                $filename = 'Terminal_Report.xlsx';
+                                break;
+                        }
+                    }
                 }
 
-                // Business logic: Ensure all records are fully approved (noted)
-                $unnotedCount = $this->rawReportData->where('status', '!=', 'noted')->count();
+                $unnotedCount = $unnotedRecords->count();
+                
                 if ($unnotedCount > 0) {
+                    $unnotedIds = $unnotedRecords->pluck('id')->implode(', ');
                     \Filament\Notifications\Notification::make()
                         ->danger()
                         ->title('Action Denied')
-                        ->body("Cannot share via email. There are {$unnotedCount} record(s) in this report that have not completed the full approval workflow (Prepared, Reviewed, and Noted).")
+                        ->body("Cannot share via email. There are {$unnotedCount} record(s) in this selection (IDs: {$unnotedIds}) that have not completed the full approval workflow. Ensure they are all in 'Noted' status.")
                         ->send();
                     return;
-                }
-
-                $exporter = null;
-                $isCumulative = ($formData['export_range'] ?? 'single') === 'cumulative';
-                
-                switch ($formData['category']) {
-                    case 'monthly_harvest':
-                        $exporter = new \App\Exports\MonthlyHarvestExport($this->rawReportData, $formData['year'], $formData['month'], $isCumulative);
-                        $filename = 'Monthly_Harvest.xlsx';
-                        break;
-                    case 'pollen_production':
-                        $exporter = new \App\Exports\PollenProductionExport($this->rawReportData, $formData['year'], $formData['month'], $isCumulative);
-                        $filename = 'Pollen_Production.xlsx';
-                        break;
-                    case 'hybrid_distribution':
-                        $exporter = new \App\Exports\HybridDistributionExport($this->rawReportData, $formData['year'], $formData['month'], $isCumulative);
-                        $filename = 'Hybrid_Distribution.xlsx';
-                        break;
-                    case 'nursery_operation':
-                        $exporter = new \App\Exports\NurseryOperationExport($this->rawReportData, $formData['year'], $formData['month'], $isCumulative);
-                        $filename = 'Nursery_Operation.xlsx';
-                        break;
-                    case 'terminal_report':
-                        $exporter = new \App\Exports\NurseryOperationExport($this->rawReportData, $formData['year'], $formData['month'], $isCumulative);
-                        $filename = 'Terminal_Report.xlsx';
-                        break;
                 }
 
                 if ($exporter) {
@@ -310,13 +593,13 @@ class ReportsDashboard extends Page implements HasForms
                         // So we instantiate the spreadsheet and writer manually just like export() does.
                         $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
                         $spreadsheet->removeSheetByIndex(0);
-                        
+
                         // We will just do a simpler manual save based on their code, or call export if possible.
                         // Wait, their export() groups by FieldSite internally. 
                         // It's much easier to just reflect on it or save manually.
-                        
+    
                         $tempFile = tempnam(sys_get_temp_dir(), 'export') . '.xlsx';
-                        
+
                         // Let's manually trigger their build logic:
                         if (method_exists($exporter, 'export')) {
                             // Actually, let's just let it build sheets
@@ -325,19 +608,19 @@ class ReportsDashboard extends Page implements HasForms
                             // Better yet, just use their export logic but grab the content
                             $response = $exporter->export();
                             $fileToAttach = $response->getFile()->getPathname();
-                            
+
                             \Illuminate\Support\Facades\Mail::to($data['email'])
                                 ->send(new \App\Mail\FieldDataReportMail($fileToAttach, $filename));
-                                
+
                             $notification = \Filament\Notifications\Notification::make()
                                 ->success()
                                 ->title('Report Shared via Email')
                                 ->body('The report has been successfully emailed to ' . $data['email']);
-                                
+
                             $notification->send();
                             $notification->sendToDatabase(auth()->user());
                         }
-                        
+
                     } catch (\Exception $e) {
                         \Filament\Notifications\Notification::make()->danger()->title('Error generating export: ' . $e->getMessage())->send();
                     }
@@ -360,23 +643,27 @@ class ReportsDashboard extends Page implements HasForms
 
                 $exporter = null;
                 $isCumulative = ($data['export_range'] ?? 'single') === 'cumulative';
-                
-                switch ($data['category']) {
-                    case 'monthly_harvest':
-                        $exporter = new \App\Exports\MonthlyHarvestExport($this->rawReportData, $data['year'], $data['month'], $isCumulative);
-                        break;
-                    case 'pollen_production':
-                        $exporter = new \App\Exports\PollenProductionExport($this->rawReportData, $data['year'], $data['month'], $isCumulative);
-                        break;
-                    case 'hybrid_distribution':
-                        $exporter = new \App\Exports\HybridDistributionExport($this->rawReportData, $data['year'], $data['month'], $isCumulative);
-                        break;
-                    case 'nursery_operation':
-                        $exporter = new \App\Exports\NurseryOperationExport($this->rawReportData, $data['year'], $data['month'], $isCumulative);
-                        break;
-                    case 'terminal_report':
-                        $exporter = new \App\Exports\NurseryOperationExport($this->rawReportData, $data['year'], $data['month'], $isCumulative);
-                        break;
+
+                if ($this->fullPackageMode) {
+                    $exporter = new \App\Exports\FullPackageExport($this->fullPackageData, $data['year'], $data['month'], $isCumulative);
+                } else {
+                    switch ($data['category']) {
+                        case 'monthly_harvest':
+                            $exporter = new \App\Exports\MonthlyHarvestExport($this->rawReportData, $data['year'], $data['month'], $isCumulative);
+                            break;
+                        case 'pollen_production':
+                            $exporter = new \App\Exports\PollenProductionExport($this->rawReportData, $data['year'], $data['month'], $isCumulative);
+                            break;
+                        case 'hybrid_distribution':
+                            $exporter = new \App\Exports\HybridDistributionExport($this->rawReportData, $data['year'], $data['month'], $isCumulative);
+                            break;
+                        case 'nursery_operation':
+                            $exporter = new \App\Exports\NurseryOperationExport($this->rawReportData, $data['year'], $data['month'], $isCumulative);
+                            break;
+                        case 'terminal_report':
+                            $exporter = new \App\Exports\NurseryOperationExport($this->rawReportData, $data['year'], $data['month'], $isCumulative);
+                            break;
+                    }
                 }
 
                 if ($exporter && method_exists($exporter, 'export')) {

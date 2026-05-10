@@ -3,6 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\HybridizationRecordResource\Pages;
+use App\Filament\Widgets\HybridizationOverview;
 use App\Models\HybridizationRecord;
 use App\Filament\Traits\HasApprovalActions;
 use BezhanSalleh\FilamentShield\Contracts\HasShieldPermissions;
@@ -29,6 +30,90 @@ class HybridizationRecordResource extends Resource implements HasShieldPermissio
     public static function getPermissionPrefixes(): array
     {
         return ['view', 'view_any', 'create', 'update', 'delete', 'delete_any'];
+    }
+
+    public static function infolist(\Filament\Infolists\Infolist $infolist): \Filament\Infolists\Infolist
+    {
+        return $infolist
+            ->schema([
+                \Filament\Infolists\Components\Section::make('Record Overview')
+                    ->icon('heroicon-o-information-circle')
+                    ->schema([
+                        \Filament\Infolists\Components\TextEntry::make('hybrid_code')
+                            ->label('Hybrid Identity')
+                            ->weight('bold')
+                            ->size('lg')
+                            ->color('primary'),
+                        \Filament\Infolists\Components\TextEntry::make('fieldSite.name')
+                            ->label('Origin Site')
+                            ->icon('heroicon-m-map-pin'),
+                        \Filament\Infolists\Components\TextEntry::make('crop_type')
+                            ->label('Classification'),
+                        \Filament\Infolists\Components\Grid::make(3)
+                            ->schema([
+                                \Filament\Infolists\Components\TextEntry::make('parent_line_a')
+                                    ->label('Male Parent (A)')
+                                    ->badge()
+                                    ->color('info'),
+                                \Filament\Infolists\Components\TextEntry::make('parent_line_b')
+                                    ->label('Female Parent (B)')
+                                    ->badge()
+                                    ->color('warning'),
+                                \Filament\Infolists\Components\TextEntry::make('date_planted')
+                                    ->date()
+                                    ->label('Date Planted')
+                                    ->icon('heroicon-m-calendar'),
+                            ]),
+                    ])->columns(2),
+
+                \Filament\Infolists\Components\Section::make('Harvest & Growth Tracking')
+                    ->icon('heroicon-o-chart-bar')
+                    ->schema([
+                        \Filament\Infolists\Components\TextEntry::make('growth_status')
+                            ->badge()
+                            ->color(fn (string $state): string => match ($state) {
+                                'seedling' => 'gray',
+                                'vegetative' => 'info',
+                                'flowering' => 'warning',
+                                'fruiting' => 'success',
+                                'harvested' => 'primary',
+                                default => 'gray',
+                            }),
+                        \Filament\Infolists\Components\TextEntry::make('estimated_harvest_date')
+                            ->label('Target Harvest')
+                            ->date('M Y')
+                            ->color('success')
+                            ->weight('bold'),
+                        \Filament\Infolists\Components\TextEntry::make('days_until_harvest')
+                            ->label('Timeline Status')
+                            ->suffix(' Days')
+                            ->badge()
+                            ->color(fn ($record) => $record->days_until_harvest < 0 ? 'danger' : 'success'),
+                        \Filament\Infolists\Components\TextEntry::make('status')
+                            ->label('Validation State')
+                            ->badge(),
+                    ])->columns(4),
+
+                \Filament\Infolists\Components\Section::make('Observations')
+                    ->icon('heroicon-o-chat-bubble-left-right')
+                    ->schema([
+                        \Filament\Infolists\Components\TextEntry::make('notes')
+                            ->placeholder('No field notes recorded.')
+                            ->columnSpanFull(),
+                        \Filament\Infolists\Components\TextEntry::make('admin_remarks')
+                            ->placeholder('No admin remarks.')
+                            ->visible(fn () => !auth()->user()?->isSupervisor())
+                            ->columnSpanFull(),
+                    ]),
+
+                \Filament\Infolists\Components\Section::make('Field Evidence')
+                    ->schema([
+                        \Filament\Infolists\Components\SpatieMediaLibraryImageEntry::make('field_images')
+                            ->collection('field_images')
+                            ->hiddenLabel()
+                            ->columnSpanFull(),
+                    ]),
+            ]);
     }
 
     public static function form(Form $form): Form
@@ -293,6 +378,13 @@ class HybridizationRecordResource extends Resource implements HasShieldPermissio
             $query->where('field_site_id', auth()->user()->field_site_id);
         }
         return $query;
+    }
+
+    public static function getWidgets(): array
+    {
+        return [
+            // HybridizationOverview::class,
+        ];
     }
 
     public static function getPages(): array

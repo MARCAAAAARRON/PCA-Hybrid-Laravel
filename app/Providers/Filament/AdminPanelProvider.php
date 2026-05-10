@@ -71,8 +71,10 @@ class AdminPanelProvider extends PanelProvider
             '))
             ->colors([
                 'primary' => Color::hex('#0b9e4f'), // PCA Green
+                'warning' => Color::hex('#dfed1f'), // PCA Yellow
+                'success' => Color::hex('#028c42'), // PCA Dark Green
             ])
-            ->font('Inter')
+            ->font('Sora', 'https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&display=swap')
             ->renderHook(
                 \Filament\View\PanelsRenderHook::HEAD_END,
                 function (): string {
@@ -92,6 +94,25 @@ class AdminPanelProvider extends PanelProvider
         --primary-900: 6, 78, 59 !important;
         --primary-950: 2, 44, 34 !important;
     }
+    
+    /* --- Coconut Theme Background --- */
+    body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        background-image: url("/images/coconut_farm.png");
+        background-repeat: no-repeat;
+        background-size: cover;
+        background-position: center bottom;
+        opacity: 0.45;
+        z-index: -10;
+        pointer-events: none;
+    }
+    
+    /* Ensure all content containers remain solid above the background */
+    .fi-section, .fi-modal-window, .fi-ta-content, .fi-wi-stats-overview-stat { background-color: #ffffff !important; }
+    .dark .fi-section, .dark .fi-modal-window, .dark .fi-ta-content, .dark .fi-wi-stats-overview-stat { background-color: #111827 !important; }
+    
     
     /* Sidebar Base */
     .fi-sidebar { background-color: #0b9e4f !important; border-right: none !important; }
@@ -181,10 +202,12 @@ class AdminPanelProvider extends PanelProvider
         border: 2px solid rgb(var(--primary-600)) !important;
         box-shadow: 0 4px 12px rgba(var(--primary-600), 0.1) !important;
         border-radius: 0.75rem !important;
+        background-color: #ffffff !important;
     }
     .dark .fi-section {
         border-color: rgb(var(--primary-900)) !important;
         box-shadow: 0 4px 12px rgba(0,0,0, 0.4) !important;
+        background-color: #111827 !important;
     }
     
     /* Subtle tinted section headers */
@@ -311,6 +334,30 @@ class AdminPanelProvider extends PanelProvider
         color: #0b9e4f !important;
         font-weight: 600 !important;
     }
+    
+    /* Main Page Headings (Global) */
+    .fi-header-heading {
+        color: #248b54ff !important;
+        font-weight: 800 !important;
+    }
+    
+    /* Breadcrumbs */
+    .fi-breadcrumbs-item-label,
+    .fi-breadcrumbs-item-separator,
+    .fi-breadcrumbs-item-icon {
+        color: #12471f !important;
+        font-weight: 700 !important;
+    }
+    
+    .dark .fi-breadcrumbs-item-label,
+    .dark .fi-breadcrumbs-item-separator,
+    .dark .fi-breadcrumbs-item-icon {
+        color: #d1d5db !important;
+    }
+    
+    .dark .fi-header-heading {
+        color: #ffffff !important;
+    }
 </style>
 HTML;
 
@@ -326,6 +373,7 @@ HTML;
                 'Hybridization',
                 'Field Data',
                 'Reports',
+                'Activity',
                 'Filament Shield',
                 'Settings',
             ])

@@ -12,22 +12,31 @@ use Filament\Infolists\Infolist;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
-class AuditLogResource extends Resource implements HasShieldPermissions
+class AuditLogResource extends Resource
 {
     protected static ?string $model = AuditLog::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-clipboard-document-list';
+    protected static ?string $navigationIcon = 'heroicon-o-finger-print';
 
-    protected static ?string $navigationGroup = 'Settings';
+    protected static ?string $navigationGroup = 'Field Data';
 
-    protected static ?string $navigationLabel = 'Audit Logs';
+    protected static ?string $navigationLabel = 'Activity Logs';
 
-    protected static ?int $navigationSort = 103;
+    protected static ?int $navigationSort = 10;
 
     public static function shouldRegisterNavigation(): bool
     {
-        return auth()->user()?->isAdmin() ?? false;
+        return auth()->user()?->isManager() ||
+            auth()->user()?->isAdmin() ||
+            auth()->user()?->isSuperAdmin();
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        // Managers, Admins, and Superadmins all see full system logs
+        return parent::getEloquentQuery()->with('user');
     }
 
     public static function getPermissionPrefixes(): array
@@ -60,10 +69,11 @@ class AuditLogResource extends Resource implements HasShieldPermissions
                     ->sortable(),
                 Tables\Columns\TextColumn::make('user.name')
                     ->label('User')
-                    ->searchable(),
+                    ->searchable()
+                    ->description(fn(AuditLog $record): string => $record->user?->role_title ?? 'User'),
                 Tables\Columns\TextColumn::make('action')
                     ->badge()
-                    ->color(fn (string $state): string => match ($state) {
+                    ->color(fn(string $state): string => match ($state) {
                         'login' => 'info',
                         'logout' => 'gray',
                         'create' => 'success',
@@ -76,13 +86,7 @@ class AuditLogResource extends Resource implements HasShieldPermissions
                         'user_mgmt' => 'warning',
                         default => 'gray',
                     })
-                    ->formatStateUsing(fn (string $state) => AuditLog::ACTION_CHOICES[$state] ?? $state),
-                Tables\Columns\TextColumn::make('model_name')
-                    ->label('Model')
-                    ->toggleable(),
-                Tables\Columns\TextColumn::make('object_id')
-                    ->label('Record ID')
-                    ->toggleable(),
+                    ->formatStateUsing(fn(string $state) => AuditLog::ACTION_CHOICES[$state] ?? $state),
                 Tables\Columns\TextColumn::make('formatted_details')
                     ->label('Details')
                     ->limit(60)
@@ -121,8 +125,6 @@ class AuditLogResource extends Resource implements HasShieldPermissions
                             ->badge(),
                         Infolists\Components\TextEntry::make('model_name')
                             ->label('Model'),
-                        Infolists\Components\TextEntry::make('object_id')
-                            ->label('Record ID'),
                         Infolists\Components\TextEntry::make('ip_address')
                             ->label('IP Address'),
                         Infolists\Components\TextEntry::make('formatted_details')

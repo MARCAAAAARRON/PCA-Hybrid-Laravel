@@ -13,7 +13,7 @@
             <th class="border border-black px-1 py-0.5 font-semibold text-center" rowspan="3">Type/Variety</th>
             <th class="border border-black px-1 py-0.5 font-semibold text-center" rowspan="3">No. of Seedlings Planted</th>
             <th class="border border-black px-1 py-0.5 font-semibold text-center" rowspan="3">Date Planted</th>
-            <th class="border border-black px-1 py-0.5 font-semibold text-center" rowspan="3">REMARKS</th>
+            <th class="border border-black px-1 py-0.5 font-semibold text-center" rowspan="3" style="max-width: 80px; font-size: 7px;">REMARKS</th>
         </tr>
         <tr class="bg-[#0B9E4F] text-white" style="background-color: #0B9E4F !important; color: white !important;">
             <th class="border border-black px-1 py-0.5 font-semibold text-center" rowspan="2">Family Name</th>
@@ -69,7 +69,7 @@
                 <td class="border border-black px-1 py-0.5 text-center">{{ $rec->variety }}</td>
                 <td class="border border-black px-1 py-0.5 text-center">{{ $rec->seedlings_planted }}</td>
                 <td class="border border-black px-1 py-0.5 text-center">{{ $rec->date_planted ? \Carbon\Carbon::parse($rec->date_planted)->format('m/d/Y') : '' }}</td>
-                <td class="border border-black px-1 py-0.5">{{ $rec->remarks }}</td>
+                <td class="border border-black px-1 py-0.5" style="max-width: 80px; font-size: 7px; word-wrap: break-word; overflow-wrap: break-word; overflow: hidden;">{{ $rec->remarks }}</td>
             </tr>
         @endforeach
 
