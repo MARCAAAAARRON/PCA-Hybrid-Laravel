@@ -2,9 +2,21 @@
     <style>
         .action-cards-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            grid-template-columns: repeat(3, 1fr);
             gap: 1.5rem;
             margin-bottom: 1rem;
+        }
+
+        @media (max-width: 768px) {
+            .action-cards-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (min-width: 769px) and (max-width: 1024px) {
+            .action-cards-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
         }
 
         .action-card {
@@ -281,8 +293,8 @@
                 <div
                     style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 1.5rem;">
                     <div>
-                        <h4 class="action-count">{{ App\Models\MonthlyHarvest::count() }}</h4>
-                        <p class="action-subtext">Total harvest records posted</p>
+                        <h4 class="action-count">{{ App\Models\MonthlyHarvest::whereYear('report_month', $year)->count() }}</h4>
+                        <p class="action-subtext">Harvest records in {{ $year }}</p>
                     </div>
                     <a href="{{ App\Filament\Resources\MonthlyHarvestResource::getUrl('index') }}" class="btn-primary"
                         style="padding: 0.625rem 1.25rem; border-radius: 0.375rem; font-size: 0.875rem; font-weight: 500; text-decoration: none;">View

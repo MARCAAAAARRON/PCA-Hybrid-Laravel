@@ -7,50 +7,66 @@ use App\Models\HarvestVariety;
 use App\Models\MonthlyHarvest;
 use Filament\Widgets\ChartWidget;
 use Illuminate\Support\Facades\DB;
+use Livewire\Attributes\On;
 
 class SiteProductionRankingChart extends ChartWidget
 {
-    protected static ?string $heading = '🏆 Site Production Ranking';
-
     protected static ?int $sort = -7;
     protected int | string | array $columnSpan = 'full';
     protected static ?string $maxHeight = '400px';
+
+    public ?int $year = null;
+
+    public function mount(): void
+    {
+        $this->year = (int) now()->year;
+    }
+
+    #[On('dashboard-year-changed')]
+    public function onYearChanged(int $year): void
+    {
+        $this->year = $year;
+    }
 
     public static function canView(): bool
     {
         return auth()->user()?->isManager() || auth()->user()?->isAdmin();
     }
 
+    public function getHeading(): ?string
+    {
+        $y = $this->year ?? now()->year;
+        return "🏆 Site Production Ranking — {$y}";
+    }
+
     protected function getData(): array
     {
-        // Get total seednuts per site from harvest_varieties
+        $year = $this->year ?? (int) now()->year;
         $sites = FieldSite::all();
-        $labels = [];
-        $data = [];
-        $colors = [];
 
         $palette = [
-            ['bg' => 'rgba(22, 163, 74, 0.7)', 'border' => '#16a34a'],   // green
-            ['bg' => 'rgba(37, 99, 235, 0.7)', 'border' => '#2563eb'],   // blue
-            ['bg' => 'rgba(234, 88, 12, 0.7)', 'border' => '#ea580c'],   // orange
-            ['bg' => 'rgba(147, 51, 234, 0.7)', 'border' => '#9333ea'],  // purple
-            ['bg' => 'rgba(220, 38, 38, 0.7)', 'border' => '#dc2626'],   // red
-            ['bg' => 'rgba(14, 165, 233, 0.7)', 'border' => '#0ea5e9'],  // sky
-            ['bg' => 'rgba(245, 158, 11, 0.7)', 'border' => '#f59e0b'],  // amber
+            ['bg' => 'rgba(22, 163, 74, 0.7)', 'border' => '#16a34a'],
+            ['bg' => 'rgba(37, 99, 235, 0.7)', 'border' => '#2563eb'],
+            ['bg' => 'rgba(234, 88, 12, 0.7)', 'border' => '#ea580c'],
+            ['bg' => 'rgba(147, 51, 234, 0.7)', 'border' => '#9333ea'],
+            ['bg' => 'rgba(220, 38, 38, 0.7)', 'border' => '#dc2626'],
+            ['bg' => 'rgba(14, 165, 233, 0.7)', 'border' => '#0ea5e9'],
+            ['bg' => 'rgba(245, 158, 11, 0.7)', 'border' => '#f59e0b'],
         ];
 
         $siteData = [];
         foreach ($sites as $site) {
-            $total = HarvestVariety::whereHas('monthlyHarvest', function ($q) use ($site) {
-                $q->withoutGlobalScopes()->where('field_site_id', $site->id);
+            $total = HarvestVariety::whereHas('monthlyHarvest', function ($q) use ($site, $year) {
+                $q->withoutGlobalScopes()->where('field_site_id', $site->id)->whereYear('report_month', $year);
             })->sum('seednuts_count');
 
             $siteData[] = ['name' => $site->name, 'total' => $total];
         }
 
-        // Sort by production descending
         usort($siteData, fn($a, $b) => $b['total'] - $a['total']);
 
+        $labels = [];
+        $data = [];
         $bgColors = [];
         $borderColors = [];
         foreach ($siteData as $i => $s) {
@@ -86,18 +102,14 @@ class SiteProductionRankingChart extends ChartWidget
         return [
             'indexAxis' => 'y',
             'maintainAspectRatio' => false,
-            'plugins' => [
-                'legend' => ['display' => false],
-            ],
+            'plugins' => ['legend' => ['display' => false]],
             'scales' => [
                 'x' => [
                     'beginAtZero' => true,
                     'ticks' => ['precision' => 0],
                     'grid' => ['display' => true, 'color' => 'rgba(0,0,0,0.05)'],
                 ],
-                'y' => [
-                    'grid' => ['display' => false],
-                ],
+                'y' => ['grid' => ['display' => false]],
             ],
         ];
     }

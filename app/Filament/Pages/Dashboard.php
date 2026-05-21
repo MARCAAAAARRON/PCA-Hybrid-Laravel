@@ -4,9 +4,6 @@ namespace App\Filament\Pages;
 
 use Filament\Actions\Action;
 use Filament\Pages\Dashboard as BaseDashboard;
-use Filament\Forms\Form;
-use Filament\Forms\Components\Select;
-use Filament\Forms\Components\Section;
 use Illuminate\Contracts\Support\Htmlable;
 
 class Dashboard extends BaseDashboard

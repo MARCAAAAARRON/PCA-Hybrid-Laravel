@@ -83,6 +83,37 @@
         }
 
         /* General layout classes */
+        .services-quicklinks-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 1.5rem;
+        }
+
+        @media (max-width: 768px) {
+            .services-quicklinks-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .service-sub-cards-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.25rem;
+            padding-bottom: 1rem;
+        }
+
+        @media (max-width: 768px) {
+            .service-sub-cards-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (min-width: 769px) and (max-width: 900px) {
+            .service-sub-cards-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
         .hide-scrollbar::-webkit-scrollbar {
             display: none;
         }
@@ -170,10 +201,10 @@
         }
     </style>
 
-    <div style="display: flex; flex-wrap: wrap; gap: 1.5rem;">
-        <!-- Services Section (Spans 2 cols conceptually) -->
+    <div class="services-quicklinks-grid">
+        <!-- Services Section -->
         <div class="services-container"
-            style="flex: 2; min-width: 300px; border-radius: 0.75rem; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); border-width: 1px; border-style: solid; padding: 1.5rem;">
+            style="border-radius: 0.75rem; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); border-width: 1px; border-style: solid; padding: 1.5rem;">
             <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 2rem;">
                 <div class="services-header-icon-bg" style="padding: 0.375rem; border-radius: 0.5rem;">
                     <x-filament::icon icon="heroicon-s-cursor-arrow-rays" class="services-header-icon"
@@ -183,10 +214,10 @@
                     style="font-size: 1.25rem; font-weight: 500; letter-spacing: -0.025em; margin: 0;">Services</h3>
             </div>
 
-            <div style="display: flex; flex-wrap: wrap; gap: 1.25rem; padding-bottom: 1rem;" class="hide-scrollbar">
+            <div class="service-sub-cards-grid hide-scrollbar">
                 <!-- Service Card 1 -->
                 <div class="service-sub-card"
-                    style="flex: 1; min-width: 180px; border-radius: 1.25rem; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); border-width: 1px; border-style: solid; position: relative; min-height: 17.5rem; padding-bottom: 0.5rem; display: flex; flex-direction: column; transition: transform 0.2s;"
+                    style="border-radius: 1.25rem; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); border-width: 1px; border-style: solid; position: relative; min-height: 17.5rem; padding-bottom: 0.5rem; display: flex; flex-direction: column; transition: transform 0.2s;"
                     onmouseover="this.style.transform='translateY(-4px)'"
                     onmouseout="this.style.transform='translateY(0)'">
                     <div class="service-img-container" style="height: 8.5rem; position: relative;">
@@ -218,7 +249,7 @@
 
                 <!-- Service Card 2 -->
                 <div class="service-sub-card"
-                    style="flex: 1; min-width: 180px; border-radius: 1.25rem; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); border-width: 1px; border-style: solid; position: relative; min-height: 17.5rem; padding-bottom: 0.5rem; display: flex; flex-direction: column; transition: transform 0.2s;"
+                    style="border-radius: 1.25rem; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); border-width: 1px; border-style: solid; position: relative; min-height: 17.5rem; padding-bottom: 0.5rem; display: flex; flex-direction: column; transition: transform 0.2s;"
                     onmouseover="this.style.transform='translateY(-4px)'"
                     onmouseout="this.style.transform='translateY(0)'">
                     <div class="service-img-container" style="height: 8.5rem; position: relative;">
@@ -250,7 +281,7 @@
 
                 <!-- Service Card 3 -->
                 <div class="service-sub-card"
-                    style="flex: 1; min-width: 180px; border-radius: 1.25rem; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); border-width: 1px; border-style: solid; position: relative; min-height: 17.5rem; padding-bottom: 0.5rem; display: flex; flex-direction: column; transition: transform 0.2s;"
+                    style="border-radius: 1.25rem; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); border-width: 1px; border-style: solid; position: relative; min-height: 17.5rem; padding-bottom: 0.5rem; display: flex; flex-direction: column; transition: transform 0.2s;"
                     onmouseover="this.style.transform='translateY(-4px)'"
                     onmouseout="this.style.transform='translateY(0)'">
                     <div class="service-img-container" style="height: 8.5rem; position: relative;">
@@ -281,9 +312,9 @@
             </div>
         </div>
 
-        <!-- Quick Links (Spans 1 col conceptually) -->
+        <!-- Quick Links -->
         <div class="quicklinks-container"
-            style="flex: 1; min-width: 250px; border-radius: 0.75rem; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); border-width: 1px; border-style: solid; padding: 1.5rem; position: relative; overflow: hidden;">
+            style="border-radius: 0.75rem; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); border-width: 1px; border-style: solid; padding: 1.5rem; position: relative; overflow: hidden;">
             <!-- Decorative light blue swirl -->
             <div class="quicklinks-swirl"
                 style="position: absolute; top: 0; right: 0; width: 8rem; height: 8rem; border-bottom-left-radius: 9999px; z-index: 0;">

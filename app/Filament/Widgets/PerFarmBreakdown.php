@@ -11,20 +11,42 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Filament\Widgets\TableWidget as BaseWidget;
 use Illuminate\Support\Facades\DB;
+use Livewire\Attributes\On;
 
 class PerFarmBreakdown extends BaseWidget
 {
     protected static ?int $sort = 4;
     protected int | string | array $columnSpan = 'full';
-    protected static ?string $heading = 'Per-Farm Breakdown';
+
+    public ?int $year = null;
+
+    public function mount(): void
+    {
+        $this->year = (int) now()->year;
+    }
+
+    #[On('dashboard-year-changed')]
+    public function onYearChanged(int $year): void
+    {
+        $this->year = $year;
+        $this->resetTable();
+    }
 
     public static function canView(): bool
     {
         return auth()->user()?->isManager() || auth()->user()?->isAdmin();
     }
 
+    public function getTableHeading(): string|\Illuminate\Contracts\Support\Htmlable|null
+    {
+        $y = $this->year ?? now()->year;
+        return "Per-Farm Breakdown — {$y}";
+    }
+
     public function table(Table $table): Table
     {
+        $year = $this->year ?? (int) now()->year;
+
         return $table
             ->query(FieldSite::query())
             ->columns([
@@ -35,32 +57,32 @@ class PerFarmBreakdown extends BaseWidget
                     ->weight('bold'),
                 Tables\Columns\TextColumn::make('harvest_count')
                     ->label('HARVEST')
-                    ->getStateUsing(fn($record) => MonthlyHarvest::where('field_site_id', $record->id)->count())
+                    ->getStateUsing(fn($record) => MonthlyHarvest::where('field_site_id', $record->id)->whereYear('report_month', $year)->count())
                     ->alignment('center'),
                 Tables\Columns\TextColumn::make('nursery_count')
                     ->label('NURSERY')
-                    ->getStateUsing(fn($record) => NurseryOperation::where('field_site_id', $record->id)->where('report_type', 'operation')->count())
+                    ->getStateUsing(fn($record) => NurseryOperation::where('field_site_id', $record->id)->where('report_type', 'operation')->whereYear('report_month', $year)->count())
                     ->alignment('center'),
                 Tables\Columns\TextColumn::make('terminal_count')
                     ->label('TERMINAL')
-                    ->getStateUsing(fn($record) => NurseryOperation::where('field_site_id', $record->id)->where('report_type', 'terminal')->count())
+                    ->getStateUsing(fn($record) => NurseryOperation::where('field_site_id', $record->id)->where('report_type', 'terminal')->whereYear('report_month', $year)->count())
                     ->alignment('center'),
                 Tables\Columns\TextColumn::make('pollen_count')
                     ->label('POLLEN')
-                    ->getStateUsing(fn($record) => PollenProduction::where('field_site_id', $record->id)->count())
+                    ->getStateUsing(fn($record) => PollenProduction::where('field_site_id', $record->id)->whereYear('report_month', $year)->count())
                     ->alignment('center'),
                 Tables\Columns\TextColumn::make('distribution_count')
                     ->label('DISTRIBUTION')
-                    ->getStateUsing(fn($record) => HybridDistribution::where('field_site_id', $record->id)->count())
+                    ->getStateUsing(fn($record) => HybridDistribution::where('field_site_id', $record->id)->whereYear('report_month', $year)->count())
                     ->alignment('center'),
                 Tables\Columns\TextColumn::make('total_count')
                     ->label('TOTAL')
                     ->weight('bold')
                     ->getStateUsing(fn($record) => 
-                        MonthlyHarvest::where('field_site_id', $record->id)->count() +
-                        NurseryOperation::where('field_site_id', $record->id)->count() +
-                        PollenProduction::where('field_site_id', $record->id)->count() +
-                        HybridDistribution::where('field_site_id', $record->id)->count()
+                        MonthlyHarvest::where('field_site_id', $record->id)->whereYear('report_month', $year)->count() +
+                        NurseryOperation::where('field_site_id', $record->id)->whereYear('report_month', $year)->count() +
+                        PollenProduction::where('field_site_id', $record->id)->whereYear('report_month', $year)->count() +
+                        HybridDistribution::where('field_site_id', $record->id)->whereYear('report_month', $year)->count()
                     )
                     ->alignment('center'),
             ])

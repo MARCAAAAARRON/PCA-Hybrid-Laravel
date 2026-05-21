@@ -10,11 +10,25 @@ use App\Models\PollenProduction;
 use App\Models\User;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
+use Livewire\Attributes\On;
 
 class StatsOverviewWidget extends BaseWidget
 {
     protected static ?int $sort = 1;
     protected int | string | array $columnSpan = 'full';
+
+    public ?int $year = null;
+
+    public function mount(): void
+    {
+        $this->year = (int) now()->year;
+    }
+
+    #[On('dashboard-year-changed')]
+    public function onYearChanged(int $year): void
+    {
+        $this->year = $year;
+    }
 
     public static function canView(): bool
     {
@@ -24,10 +38,11 @@ class StatsOverviewWidget extends BaseWidget
     public function getHeading(): ?string
     {
         $user = auth()->user();
+        $y = $this->year ?? now()->year;
         if ($user?->isManager() || $user?->isAdmin()) {
-            return 'Field Data Stats';
+            return "Field Data Stats — {$y}";
         }
-        return null;
+        return "Field Data Stats — {$y}";
     }
 
     protected function getStats(): array
@@ -35,13 +50,14 @@ class StatsOverviewWidget extends BaseWidget
         $user = auth()->user();
         $isSupervisor = $user?->isSupervisor();
         $siteId = $user?->field_site_id;
+        $year = $this->year ?? (int) now()->year;
 
-        // Build queries with optional site scoping
-        $harvestQuery = MonthlyHarvest::query();
-        $nurseryQuery = NurseryOperation::query()->where('report_type', 'operation');
-        $distributionQuery = HybridDistribution::query();
-        $terminalQuery = NurseryOperation::query()->where('report_type', 'terminal');
-        $pollenQuery = PollenProduction::query();
+        // Build queries with year and optional site scoping
+        $harvestQuery = MonthlyHarvest::query()->whereYear('report_month', $year);
+        $nurseryQuery = NurseryOperation::query()->where('report_type', 'operation')->whereYear('report_month', $year);
+        $distributionQuery = HybridDistribution::query()->whereYear('report_month', $year);
+        $terminalQuery = NurseryOperation::query()->where('report_type', 'terminal')->whereYear('report_month', $year);
+        $pollenQuery = PollenProduction::query()->whereYear('report_month', $year);
         $recordQuery = HybridizationRecord::query();
         $readyQuery = HybridizationRecord::query()->readyForHarvest();
 
@@ -71,8 +87,7 @@ class StatsOverviewWidget extends BaseWidget
 
             Stat::make('Harvest', $harvestQuery->count())
                 ->description('Seednut production records')
-                ->icon('heroicon-o-academic-cap') // or tree if available. Let's use heroicon-o-list-bullet or tree? 
-                // Actually, Filament uses Heroicons. Let's use heroicon-o-variable for now or check for tree.
+                ->icon('heroicon-o-academic-cap')
                 ->extraAttributes(['class' => 'stat-gradient-2']),
 
             Stat::make('Nursery', $nurseryQuery->count())
@@ -87,7 +102,7 @@ class StatsOverviewWidget extends BaseWidget
 
             Stat::make('Pollen', $pollenQuery->count())
                 ->description('Pollen production')
-                ->icon('heroicon-o-beaker') // Standard for pollen/pollen extraction
+                ->icon('heroicon-o-beaker')
                 ->extraAttributes(['class' => 'stat-gradient-5']),
         ];
 

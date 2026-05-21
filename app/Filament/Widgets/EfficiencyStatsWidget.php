@@ -7,50 +7,62 @@ use App\Models\HybridDistribution;
 use App\Models\PollenProduction;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
+use Livewire\Attributes\On;
 
 class EfficiencyStatsWidget extends BaseWidget
 {
     protected static ?int $sort = 9;
     protected int | string | array $columnSpan = 'full';
 
+    public ?int $year = null;
+
+    public function mount(): void
+    {
+        $this->year = (int) now()->year;
+    }
+
+    #[On('dashboard-year-changed')]
+    public function onYearChanged(int $year): void
+    {
+        $this->year = $year;
+    }
+
     public static function canView(): bool
     {
         return auth()->user()?->isManager() || auth()->user()?->isAdmin();
     }
 
+    public function getHeading(): ?string
+    {
+        $y = $this->year ?? now()->year;
+        return "Efficiency Metrics — {$y}";
+    }
+
     protected function getStats(): array
     {
-        // Total Pollen Utilized (grams)
-        $totalPollen = PollenProduction::withoutGlobalScopes()->sum('total_utilization');
+        $year = $this->year ?? (int) now()->year;
 
-        // Total Seednuts Harvested
-        $totalSeednuts = HarvestVariety::whereHas('monthlyHarvest', function ($q) {
-            $q->withoutGlobalScopes();
+        $totalPollen = PollenProduction::withoutGlobalScopes()->whereYear('report_month', $year)->sum('total_utilization');
+        $totalSeednuts = HarvestVariety::whereHas('monthlyHarvest', function ($q) use ($year) {
+            $q->withoutGlobalScopes()->whereYear('report_month', $year);
         })->sum('seednuts_count');
+        $totalSeedlings = HybridDistribution::withoutGlobalScopes()->whereYear('report_month', $year)->sum('seedlings_planted');
 
-        // Total Seedlings Distributed (successfully reached farmers)
-        $totalSeedlings = HybridDistribution::withoutGlobalScopes()->sum('seedlings_planted');
-
-        // Calculations
         $pollenEfficiency = $totalPollen > 0 ? round($totalSeednuts / $totalPollen, 1) : 0;
-        
-        $survivalRate = 0;
-        if ($totalSeednuts > 0) {
-            $survivalRate = round(($totalSeedlings / $totalSeednuts) * 100, 1);
-        }
+        $survivalRate = $totalSeednuts > 0 ? round(($totalSeedlings / $totalSeednuts) * 100, 1) : 0;
 
         return [
             Stat::make('Pollen Efficiency', $pollenEfficiency)
                 ->description('Seednuts produced per gram of pollen')
                 ->descriptionIcon('heroicon-m-bolt')
                 ->color($pollenEfficiency >= 10 ? 'success' : 'warning')
-                ->chart([7, 8, 9, 10, $pollenEfficiency]), // Mock chart trend
+                ->chart([7, 8, 9, 10, $pollenEfficiency]),
 
             Stat::make('Seedling Survival Rate', $survivalRate . '%')
                 ->description('From harvest to distribution')
                 ->descriptionIcon('heroicon-m-shield-check')
                 ->color($survivalRate >= 80 ? 'success' : ($survivalRate >= 50 ? 'warning' : 'danger'))
-                ->chart([60, 70, 75, 80, $survivalRate]), // Mock chart trend
+                ->chart([60, 70, 75, 80, $survivalRate]),
                 
             Stat::make('Total Loss Pipeline', number_format($totalSeednuts - $totalSeedlings))
                 ->description('Seednuts that didn\'t reach distribution')

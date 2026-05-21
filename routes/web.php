@@ -4,7 +4,32 @@ use Illuminate\Support\Facades\Route;
 use App\Models\FieldSite;
 
 Route::get('/', function () {
-    return view('welcome');
+    $year = (int) request('year', now()->year);
+
+    $sites = FieldSite::with([])->get()->map(function ($site) use ($year) {
+        return [
+            'name'          => $site->name,
+            'harvests'      => \App\Models\MonthlyHarvest::where('field_site_id', $site->id)->whereYear('report_month', $year)->count(),
+            'pollen'        => \App\Models\PollenProduction::where('field_site_id', $site->id)->whereYear('report_month', $year)->count(),
+            'nursery'       => \App\Models\NurseryOperation::where('field_site_id', $site->id)->where('report_type', 'operation')->whereYear('report_month', $year)->count(),
+            'distribution'  => \App\Models\HybridDistribution::where('field_site_id', $site->id)->whereYear('report_month', $year)->count(),
+            'seednuts'      => \App\Models\HarvestVariety::whereHas('monthlyHarvest', fn($q) => $q->withoutGlobalScopes()->where('field_site_id', $site->id)->whereYear('report_month', $year))->sum('seednuts_count'),
+            'seedlings'     => \App\Models\HybridDistribution::where('field_site_id', $site->id)->whereYear('report_month', $year)->sum('seedlings_planted'),
+        ];
+    });
+
+    $totalHarvests      = $sites->sum('harvests');
+    $totalPollen        = $sites->sum('pollen');
+    $totalDistribution  = $sites->sum('distribution');
+    $totalSeednuts      = $sites->sum('seednuts');
+    $totalSeedlings     = $sites->sum('seedlings');
+    $siteCount          = FieldSite::count();
+
+    return view('welcome', compact(
+        'sites', 'year', 'siteCount',
+        'totalHarvests', 'totalPollen', 'totalDistribution',
+        'totalSeednuts', 'totalSeedlings'
+    ));
 });
 
 // ─── QR Code Routes ─────────────────────────────────────────────

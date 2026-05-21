@@ -1004,6 +1004,356 @@
             animation-delay: .7s
         }
 
+        /* ── ORG CHART ── */
+        .org-section {
+            background: var(--white);
+        }
+
+        .org-header {
+            text-align: center;
+            margin-bottom: 4rem;
+        }
+
+        .org-header .section-desc {
+            margin: 0 auto;
+        }
+
+        .org-tree {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0;
+        }
+
+        .org-level {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            flex-wrap: wrap;
+            position: relative;
+        }
+
+        .org-connector {
+            width: 2px;
+            height: 2.5rem;
+            background: linear-gradient(to bottom, var(--green-500), var(--green-400));
+            margin: 0 auto;
+        }
+
+        .org-h-line {
+            position: relative;
+            display: flex;
+            justify-content: center;
+            margin-bottom: 0;
+        }
+
+        .org-h-line::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: min(70%, 600px);
+            height: 2px;
+            background: var(--green-400);
+        }
+
+        .org-branch-connectors {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .org-branch-line {
+            width: 2px;
+            height: 2rem;
+            background: var(--green-400);
+        }
+
+        .org-card {
+            background: var(--surface);
+            border: 1.5px solid rgba(10, 46, 18, .08);
+            border-radius: 20px;
+            padding: 2rem 1.75rem;
+            text-align: center;
+            width: 240px;
+            transition: all .3s;
+            position: relative;
+        }
+
+        .org-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 16px 48px rgba(10, 46, 18, .1);
+        }
+
+        .org-card.org-head {
+            width: 280px;
+            border-color: var(--green-500);
+            background: linear-gradient(135deg, rgba(16, 185, 129, .06), rgba(52, 211, 153, .04));
+        }
+
+        .org-card.org-head .org-avatar {
+            width: 90px;
+            height: 90px;
+            font-size: 2.5rem;
+            border: 3px solid var(--green-500);
+        }
+
+        .org-avatar {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            background: var(--green-800);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1rem;
+            font-size: 2rem;
+            color: var(--white);
+            border: 2.5px solid rgba(10, 46, 18, .1);
+            overflow: hidden;
+        }
+
+        .org-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .org-card h4 {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--green-900);
+            margin-bottom: .2rem;
+        }
+
+        .org-card .org-role {
+            font-size: .75rem;
+            font-weight: 600;
+            color: var(--green-600);
+            text-transform: uppercase;
+            letter-spacing: .1em;
+            margin-bottom: .5rem;
+        }
+
+        .org-card .org-desc {
+            font-size: .8rem;
+            color: var(--text-muted);
+            line-height: 1.5;
+        }
+
+        .org-placeholder-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: .25rem;
+            margin-top: .75rem;
+            font-size: .65rem;
+            font-weight: 600;
+            color: rgba(100, 116, 100, .6);
+            background: rgba(10, 46, 18, .04);
+            padding: .25rem .65rem;
+            border-radius: 100px;
+        }
+
+        @media(max-width:768px) {
+            .org-level {
+                flex-direction: column;
+                align-items: center;
+                gap: 1rem;
+            }
+
+            .org-h-line::before {
+                display: none;
+            }
+
+            .org-branch-connectors {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .org-card {
+                width: 100%;
+                max-width: 300px;
+            }
+
+            .org-card.org-head {
+                width: 100%;
+                max-width: 300px;
+            }
+        }
+
+        /* ── FARM ACTIVITY ── */
+        .farm-activity {
+            background: var(--white);
+        }
+
+        .farm-activity-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-bottom: 3rem;
+        }
+
+        .year-select-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: .5rem;
+            background: rgba(11, 158, 79, 0.08);
+            border: 1.5px solid var(--green-500);
+            color: var(--green-900);
+            padding: .5rem 1rem;
+            border-radius: 100px;
+            font-weight: 600;
+            font-size: .875rem;
+        }
+
+        .year-select-pill select {
+            appearance: none;
+            -webkit-appearance: none;
+            background: transparent;
+            border: none;
+            outline: none;
+            font-size: .875rem;
+            font-weight: 700;
+            color: var(--green-900);
+            cursor: pointer;
+            font-family: 'Sora', sans-serif;
+            padding-right: .5rem;
+        }
+
+        .farm-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .farm-card {
+            background: var(--surface);
+            border: 1.5px solid rgba(10, 46, 18, .08);
+            border-radius: 20px;
+            padding: 2rem;
+            transition: all .3s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .farm-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--green-700), var(--green-500));
+        }
+
+        .farm-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 16px 48px rgba(10, 46, 18, .1);
+        }
+
+        .farm-card-header {
+            display: flex;
+            align-items: center;
+            gap: .75rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .farm-card-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            background: var(--green-800);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            flex-shrink: 0;
+        }
+
+        .farm-card-header h3 {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--green-900);
+            line-height: 1.2;
+        }
+
+        .farm-card-header span {
+            font-size: .75rem;
+            color: var(--text-muted);
+            font-weight: 400;
+        }
+
+        .farm-stats-row {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: .75rem;
+        }
+
+        .farm-stat-item {
+            background: var(--white);
+            border-radius: 12px;
+            padding: .75rem 1rem;
+            border: 1px solid rgba(10, 46, 18, .06);
+        }
+
+        .farm-stat-item .num {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: var(--green-800);
+            line-height: 1;
+        }
+
+        .farm-stat-item .label {
+            font-size: .7rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            margin-top: .25rem;
+        }
+
+        .farm-card-footer {
+            margin-top: 1.25rem;
+            padding-top: 1rem;
+            border-top: 1px solid rgba(10, 46, 18, .06);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .farm-seednut-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: .35rem;
+            background: rgba(245, 226, 0, .15);
+            color: var(--green-900);
+            font-size: .8rem;
+            font-weight: 700;
+            padding: .35rem .85rem;
+            border-radius: 100px;
+        }
+
+        .farm-seedling-text {
+            font-size: .8rem;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        @media(max-width:768px) {
+            .farm-activity-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .farm-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
         /* ── RESPONSIVE ── */
         @media(max-width:768px) {
             .nav-links {
@@ -1068,9 +1418,11 @@
         </div>
 
         <div class="nav-links">
+            <a href="#farm-activity">Farm Activity</a>
             <a href="#features">Features</a>
             <a href="#how-it-works">How It Works</a>
             <a href="#about">About</a>
+            <a href="#our-team">Our Team</a>
             <a href="/admin/login" class="btn-nav">Login</a>
         </div>
 
@@ -1079,9 +1431,11 @@
             <span></span><span></span><span></span>
         </button>
         <div class="mobile-menu" id="mobile-menu">
+            <a href="#farm-activity">Farm Activity</a>
             <a href="#features">Features</a>
             <a href="#how-it-works">How It Works</a>
             <a href="#about">About</a>
+            <a href="#our-team">Our Team</a>
             <a href="/admin/login" class="btn-nav">Login / Register</a>
         </div>
     </nav>
@@ -1145,23 +1499,84 @@
     <div class="stats">
         <div class="stats-grid">
             <div class="reveal">
-                <div class="stat-num">+2</div>
+                <div class="stat-num">{{ $siteCount }}</div>
                 <div class="stat-label">Field Sites</div>
             </div>
             <div class="reveal">
-                <div class="stat-num">4</div>
-                <div class="stat-label">Core Modules</div>
+                <div class="stat-num">{{ number_format($totalSeednuts) }}</div>
+                <div class="stat-label">Seednuts Harvested</div>
             </div>
             <div class="reveal">
-                <div class="stat-num">4-Stage</div>
-                <div class="stat-label">Approval Logic</div>
+                <div class="stat-num">{{ number_format($totalSeedlings) }}</div>
+                <div class="stat-label">Seedlings Distributed</div>
             </div>
             <div class="reveal">
-                <div class="stat-num">100%</div>
-                <div class="stat-label">Traceability</div>
+                <div class="stat-num">{{ $totalHarvests + $totalPollen + $totalDistribution }}</div>
+                <div class="stat-label">Reports Filed ({{ $year }})</div>
             </div>
         </div>
     </div>
+
+
+    <!-- ═══════════════════════════════════════
+     FARM ACTIVITY
+════════════════════════════════════════ -->
+    <section class="farm-activity" id="farm-activity">
+        <div class="section-inner">
+            <div class="farm-activity-header">
+                <div>
+                    <div class="section-tag reveal">✦ Live Program Data</div>
+                    <h2 class="section-title font-bold reveal">Farm Activity<br>per Field Site</h2>
+                    <p class="section-desc reveal">Real-time operational data from all PCA Bohol hybridization field sites — open for public transparency.</p>
+                </div>
+                <div class="year-select-pill reveal">
+                    📅
+                    <select onchange="window.location.href='/?year='+this.value">
+                        @for($y = now()->year; $y >= 2024; $y--)
+                            <option value="{{ $y }}" {{ $year == $y ? 'selected' : '' }}>{{ $y }}</option>
+                        @endfor
+                    </select>
+                    ▾
+                </div>
+            </div>
+
+            <div class="farm-grid">
+                @foreach($sites as $site)
+                <div class="farm-card reveal">
+                    <div class="farm-card-header">
+                        <div class="farm-card-icon">🌴</div>
+                        <div>
+                            <h3>{{ $site['name'] }}</h3>
+                            <span>{{ $year }} Data</span>
+                        </div>
+                    </div>
+                    <div class="farm-stats-row">
+                        <div class="farm-stat-item">
+                            <div class="num">{{ $site['harvests'] }}</div>
+                            <div class="label">Harvest Reports</div>
+                        </div>
+                        <div class="farm-stat-item">
+                            <div class="num">{{ $site['pollen'] }}</div>
+                            <div class="label">Pollen Records</div>
+                        </div>
+                        <div class="farm-stat-item">
+                            <div class="num">{{ $site['nursery'] }}</div>
+                            <div class="label">Nursery Ops</div>
+                        </div>
+                        <div class="farm-stat-item">
+                            <div class="num">{{ $site['distribution'] }}</div>
+                            <div class="label">Distributions</div>
+                        </div>
+                    </div>
+                    <div class="farm-card-footer">
+                        <div class="farm-seednut-badge">🥥 {{ number_format($site['seednuts']) }} seednuts</div>
+                        <div class="farm-seedling-text">🌱 {{ number_format($site['seedlings']) }} seedlings</div>
+                    </div>
+                </div>
+                @endforeach
+            </div>
+        </div>
+    </section>
 
 
     <!-- ═══════════════════════════════════════
@@ -1320,6 +1735,104 @@
                         <span class="tag">🔬 Makapuno Hybrid</span>
                         <span class="tag">📋 LGU Certified</span>
                         <span class="tag">🇵🇭 DA–Philippines</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+
+    <!-- ═══════════════════════════════════════
+     ORGANIZATIONAL STRUCTURE
+════════════════════════════════════════ -->
+    <section class="org-section" id="our-team">
+        <div class="section-inner">
+            <div class="org-header">
+                <div class="section-tag reveal">✦ Leadership</div>
+                <h2 class="section-title font-bold reveal">Organizational<br>Structure</h2>
+                <p class="section-desc reveal">The dedicated team behind PCA Bohol's coconut hybridization program.</p>
+            </div>
+
+            <div class="org-tree">
+                <!-- Top: Provincial Manager -->
+                <div class="org-level reveal">
+                    <div class="org-card org-head">
+                        <div class="org-avatar">👤</div>
+                        <h4>Juan Dela Cruz</h4>
+                        <div class="org-role">Provincial Manager</div>
+                        <div class="org-desc">Oversees all PCA Bohol operations, programs, and field activities.</div>
+                        <div class="org-placeholder-badge">📷 Photo placeholder</div>
+                    </div>
+                </div>
+
+                <!-- Connector line -->
+                <div class="org-connector"></div>
+
+                <!-- Horizontal branch line -->
+                <div class="org-h-line" style="width:100%;height:2rem;"></div>
+
+                <!-- Second tier -->
+                <div class="org-level reveal" style="gap:3rem;">
+                    <div style="display:flex;flex-direction:column;align-items:center;">
+                        <div class="org-branch-line"></div>
+                        <div class="org-card">
+                            <div class="org-avatar">👤</div>
+                            <h4>Maria Santos</h4>
+                            <div class="org-role">Section Head – Hybridization</div>
+                            <div class="org-desc">Leads the hybridization research and seednut production programs.</div>
+                            <div class="org-placeholder-badge">📷 Photo placeholder</div>
+                        </div>
+                    </div>
+
+                    <div style="display:flex;flex-direction:column;align-items:center;">
+                        <div class="org-branch-line"></div>
+                        <div class="org-card">
+                            <div class="org-avatar">👤</div>
+                            <h4>Pedro Reyes</h4>
+                            <div class="org-role">Section Head – Operations</div>
+                            <div class="org-desc">Manages nursery operations, pollen production, and distribution logistics.</div>
+                            <div class="org-placeholder-badge">📷 Photo placeholder</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Connector line -->
+                <div class="org-connector"></div>
+                <div class="org-h-line" style="width:100%;height:2rem;"></div>
+
+                <!-- Third tier: Field Supervisors -->
+                <div class="org-level reveal">
+                    <div style="display:flex;flex-direction:column;align-items:center;">
+                        <div class="org-branch-line"></div>
+                        <div class="org-card">
+                            <div class="org-avatar" style="background:var(--green-600);">👤</div>
+                            <h4>Ana Lim</h4>
+                            <div class="org-role">Field Supervisor</div>
+                            <div class="org-desc">Loay Farm</div>
+                            <div class="org-placeholder-badge">📷 Photo placeholder</div>
+                        </div>
+                    </div>
+
+                    <div style="display:flex;flex-direction:column;align-items:center;">
+                        <div class="org-branch-line"></div>
+                        <div class="org-card">
+                            <div class="org-avatar" style="background:var(--green-600);">👤</div>
+                            <h4>Carlos Manalo</h4>
+                            <div class="org-role">Field Supervisor</div>
+                            <div class="org-desc">Balilihan Farm</div>
+                            <div class="org-placeholder-badge">📷 Photo placeholder</div>
+                        </div>
+                    </div>
+
+                    <div style="display:flex;flex-direction:column;align-items:center;">
+                        <div class="org-branch-line"></div>
+                        <div class="org-card">
+                            <div class="org-avatar" style="background:var(--green-600);">👤</div>
+                            <h4>Rosa Tan</h4>
+                            <div class="org-role">Field Supervisor</div>
+                            <div class="org-desc">Additional Site</div>
+                            <div class="org-placeholder-badge">📷 Photo placeholder</div>
+                        </div>
                     </div>
                 </div>
             </div>

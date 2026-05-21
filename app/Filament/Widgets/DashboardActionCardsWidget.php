@@ -3,6 +3,7 @@
 namespace App\Filament\Widgets;
 
 use Filament\Widgets\Widget;
+use Livewire\Attributes\On;
 
 class DashboardActionCardsWidget extends Widget
 {
@@ -11,8 +12,28 @@ class DashboardActionCardsWidget extends Widget
     protected static ?int $sort = -9;
     protected int | string | array $columnSpan = 'full';
 
+    public ?int $year = null;
+
+    public function mount(): void
+    {
+        $this->year = (int) now()->year;
+    }
+
+    #[On('dashboard-year-changed')]
+    public function onYearChanged(int $year): void
+    {
+        $this->year = $year;
+    }
+
     public static function canView(): bool
     {
         return !auth()->user()?->isSuperAdmin();
+    }
+
+    protected function getViewData(): array
+    {
+        return [
+            'year' => $this->year ?? (int) now()->year,
+        ];
     }
 }

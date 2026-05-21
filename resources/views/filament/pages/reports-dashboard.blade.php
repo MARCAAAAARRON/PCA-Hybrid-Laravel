@@ -56,23 +56,18 @@
                 </div>
                 <div>
                     <h3 class="text-base font-semibold text-gray-900 dark:text-white">Report Filters</h3>
-                    <p class="text-xs text-gray-500 dark:text-gray-400">Select category, period, and field site to generate your report</p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">Select one or more categories, period, and field site to generate your report</p>
                 </div>
             </div>
             {{ $this->form }}
             <div class="mt-6 pt-5 border-t border-gray-100 dark:border-gray-800 flex flex-wrap items-center gap-3">
-                @if(($this->data['report_type'] ?? 'single') === 'single')
-                    <x-filament::button type="submit" icon="heroicon-o-document-magnifying-glass" size="lg" wire:loading.attr="disabled" wire:target="generateReport, generateFullPackage" class="disabled:opacity-70 disabled:cursor-not-allowed">
-                        Generate Report
-                    </x-filament::button>
-                @else
-                    <x-filament::button type="button" icon="heroicon-o-squares-2x2" size="lg" color="success" wire:click="generateFullPackage" wire:loading.attr="disabled" wire:target="generateReport, generateFullPackage" class="disabled:opacity-70 disabled:cursor-not-allowed">
-                        Generate Full Package
-                    </x-filament::button>
-                @endif
+                @php $catCount = count($this->data['categories'] ?? []); @endphp
+                <x-filament::button type="submit" icon="{{ $catCount > 1 ? 'heroicon-o-squares-2x2' : 'heroicon-o-document-magnifying-glass' }}" size="lg" color="{{ $catCount > 1 ? 'success' : 'primary' }}" wire:loading.attr="disabled" wire:target="generateReport" class="disabled:opacity-70 disabled:cursor-not-allowed">
+                    {{ $catCount > 1 ? 'Generate Report Package (' . $catCount . ' categories)' : 'Generate Report' }}
+                </x-filament::button>
 
                 @if(!empty($reportData) || $fullPackageMode)
-                    <x-filament::button color="gray" icon="heroicon-o-eye" size="sm" wire:click="openReportModal" wire:loading.attr="disabled" wire:target="openReportModal, generateReport, generateFullPackage" class="disabled:opacity-50 disabled:cursor-not-allowed ml-auto">
+                    <x-filament::button color="gray" icon="heroicon-o-eye" size="sm" wire:click="openReportModal" wire:loading.attr="disabled" wire:target="openReportModal, generateReport" class="disabled:opacity-50 disabled:cursor-not-allowed ml-auto">
                         View Report
                     </x-filament::button>
                 @endif
@@ -97,7 +92,7 @@
                  @keydown.right.window="$wire.nextPage()">
 
                 {{-- Modal Action Loading Overlay (Excel, Share, Navigation, Exit) --}}
-                <div wire:loading wire:target="exportExcelAction, shareAction, goToPage, switchCategory, generateFullPackage, firstPage, lastPage, prevPage, nextPage, closeModal" class="absolute inset-0 z-[10002] flex flex-col items-center justify-center bg-white/60 dark:bg-gray-900/60 backdrop-blur-md">
+                <div wire:loading wire:target="exportExcelAction, shareAction, goToPage, switchCategory, generateReport, firstPage, lastPage, prevPage, nextPage, closeModal" class="absolute inset-0 z-[10002] flex flex-col items-center justify-center bg-white/60 dark:bg-gray-900/60 backdrop-blur-md">
                     <div class="flex flex-col items-center p-8 rounded-3xl bg-white dark:bg-gray-800 shadow-2xl border border-gray-100 dark:border-gray-700">
                         <x-filament::loading-indicator class="text-[#0b9e4f] mb-4" style="width: 54px; height: 54px;" />
                         <span class="text-lg font-bold text-[#0b9e4f] tracking-tight">Processing request...</span>
@@ -114,15 +109,27 @@
                 {{-- Modal Header --}}
                 <div class="shrink-0 bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-gray-700">
 
-                    {{-- CATEGORY TABS (Full Package Mode only) --}}
-                    @if($fullPackageMode)
+                    {{-- CATEGORY TABS (Multi-category mode: shows only user-selected categories) --}}
+                    @if($fullPackageMode && count($selectedCategories) > 1)
+                    @php
+                        $categoryShortLabels = [
+                            'monthly_harvest' => 'Monthly Harvest',
+                            'pollen_production' => 'Pollen Prod.',
+                            'hybrid_distribution' => 'Hybrid Dist.',
+                            'nursery_operation' => 'Nursery Ops.',
+                            'terminal_report' => 'Terminal',
+                        ];
+                    @endphp
                     <div class="flex items-center overflow-x-auto border-b border-gray-100 dark:border-gray-700/50 px-4 pt-2" style="scrollbar-width: none;">
-                        @foreach(['monthly_harvest' => 'Monthly Harvest', 'pollen_production' => 'Pollen Prod.', 'hybrid_distribution' => 'Hybrid Dist.', 'nursery_operation' => 'Nursery Ops.', 'terminal_report' => 'Terminal'] as $cat => $catLabel)
-                            @php $catHasData = !empty($fullPackageData[$cat]); @endphp
+                        @foreach($selectedCategories as $cat)
+                            @php
+                                $catLabel = $categoryShortLabels[$cat] ?? $cat;
+                                $catHasData = !empty($fullPackageData[$cat]);
+                            @endphp
                             <button
                                 wire:click="switchCategory('{{ $cat }}')"
                                 wire:loading.attr="disabled"
-                                wire:target="switchCategory, goToPage, prevPage, nextPage, generateFullPackage"
+                                wire:target="switchCategory, goToPage, prevPage, nextPage, generateReport"
                                 class="flex items-center gap-1.5 px-4 py-2.5 text-xs font-semibold whitespace-nowrap transition-all border-b-2 shrink-0
                                     {{ $activeCategory === $cat
                                         ? 'border-[#0b9e4f] text-[#0b9e4f]'
@@ -147,7 +154,7 @@
                             </div>
                             <div>
                                 <h3 class="text-sm font-bold text-gray-900 dark:text-white">
-                                    {{ $fullPackageMode ? 'Full Report Package' : 'Report Preview' }}
+                                    {{ $fullPackageMode ? 'Report Package (' . count($selectedCategories) . ' categories)' : 'Report Preview' }}
                                 </h3>
                                 <p class="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
                                     @php
@@ -160,7 +167,7 @@
                                         <span class="mx-1 text-gray-300 dark:text-gray-600">|</span>
                                         @if($batchMode || $fullPackageMode)
                                             <span class="inline-flex items-center gap-0.5 font-semibold" style="color: #0b9e4f;">
-                                                <x-heroicon-m-squares-2x2 class="w-3 h-3" /> {{ $fullPackageMode ? 'Full Package' : 'Batch' }} &mdash; {{ $siteCount }} Sites
+                                                <x-heroicon-m-squares-2x2 class="w-3 h-3" /> {{ $fullPackageMode ? 'Multi-Category' : 'Batch' }} &mdash; {{ $siteCount }} Sites
                                             </span>
                                         @else
                                             <span class="font-semibold" style="color: #0b9e4f;">Page {{ $currentPage + 1 }} of {{ $siteCount }}</span>
@@ -184,7 +191,7 @@
                                         <button
                                             wire:click="goToPage({{ $idx }})"
                                             wire:loading.attr="disabled"
-                                            wire:target="goToPage, switchCategory, prevPage, nextPage, generateFullPackage"
+                                            wire:target="goToPage, switchCategory, prevPage, nextPage, generateReport"
                                             title="{{ $tabName }}"
                                             class="px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all duration-200 shrink-0
                                                 {{ $currentPage === $idx
@@ -257,7 +264,7 @@
                                                     <h2 class="font-bold text-sm leading-tight">PHILIPPINE COCONUT AUTHORITY</h2>
                                                     <p class="font-bold text-xs uppercase">COCONUT HYBRIDIZATION PROJECT-CFIDP</p>
                                                     @php
-                                                        $currentCategory = $fullPackageMode ? $activeCategory : ($data['category'] ?? '');
+                                                        $currentCategory = $activeCategory;
                                                     @endphp
                                                     @if($currentCategory === 'monthly_harvest')
                                                         <p class="uppercase text-xs mt-0.5">ON-FARM HYBRID SEEDNUT PRODUCTION</p>
