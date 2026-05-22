@@ -191,7 +191,7 @@ trait HasApprovalWorkflow
 
         $users = User::whereIn('role', $roles)->get()->filter(function ($user) use ($siteId) {
             if (in_array($user->role, ['admin', 'superadmin'])) return true;
-            if ($siteId && $user->field_site_id != $siteId) return false;
+            if ($siteId && $user->field_site_id && $user->field_site_id != $siteId) return false;
             return true;
         });
 

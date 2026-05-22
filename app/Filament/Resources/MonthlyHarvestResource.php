@@ -257,6 +257,7 @@ class MonthlyHarvestResource extends Resource implements HasShieldPermissions
             ])
             ->defaultSort('report_month', 'desc')
             ->actions([
+                Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make()
                     ->visible(fn (Model $record) => $record->isDraft() && auth()->user()?->isSupervisor()),
                 Tables\Actions\DeleteAction::make()

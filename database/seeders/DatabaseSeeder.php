@@ -79,18 +79,7 @@ class DatabaseSeeder extends Seeder
             ]
         );
 
-        // 6. Default admin user (for kaido-kit compatibility)
-        User::firstOrCreate(
-            ['email' => 'admin@admin.com'],
-            [
-                'name' => 'admin',
-                'password' => Hash::make('password'),
-                'role' => 'admin',
-                'email_verified_at' => now(),
-            ]
-        );
-
-        // 7. Seed Permissions and assign Roles
+        // 6. Seed Permissions and assign Roles
         $this->call(RolePermissionSeeder::class);
     }
 }

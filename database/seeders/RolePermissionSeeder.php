@@ -30,7 +30,7 @@ class RolePermissionSeeder extends Seeder
         $allPermissions = Permission::all();
 
         // 3. Define module groups
-        $superAdminOnlyModules = ['role', 'user', 'field::site']; // Superadmin: roles, users, field sites
+        $superAdminOnlyModules = ['role', 'user', 'field::site']; // Superadmin only: roles, users, field sites
         $adminOnlyModules = ['audit::log']; // Admin: audit logs only
         $fieldDataModules = [
             'hybrid::distribution',

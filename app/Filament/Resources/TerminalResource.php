@@ -340,6 +340,7 @@ class TerminalResource extends Resource implements HasShieldPermissions
             ])
             ->defaultSort('report_month', 'desc')
             ->actions([
+                Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make()
                     ->visible(fn (Model $record) => $record->isDraft() && auth()->user()?->isSupervisor()),
                 Tables\Actions\DeleteAction::make()
@@ -355,6 +356,40 @@ class TerminalResource extends Resource implements HasShieldPermissions
                 ]),
             ])
             ;
+    }
+
+    public static function infolist(\Filament\Infolists\Infolist $infolist): \Filament\Infolists\Infolist
+    {
+        return $infolist
+            ->schema([
+                \Filament\Infolists\Components\Section::make('General Information')
+                    ->schema([
+                        \Filament\Infolists\Components\TextEntry::make('fieldSite.name')->label('Field Site'),
+                        \Filament\Infolists\Components\TextEntry::make('report_month')->date('F Y')->label('Report Month'),
+                        \Filament\Infolists\Components\TextEntry::make('proponent_entity')->label('Proponent Entity'),
+                        \Filament\Infolists\Components\TextEntry::make('proponent_representative')->label('Representative'),
+                        \Filament\Infolists\Components\TextEntry::make('target_seednuts')->label('Target Seednuts')->numeric(),
+                        \Filament\Infolists\Components\TextEntry::make('nursery_start_date')->date('m/d/Y')->label('Nursery Start Date'),
+                        \Filament\Infolists\Components\TextEntry::make('date_ready_for_distribution')->date('m/d/Y')->label('Date Ready for Distribution'),
+                        \Filament\Infolists\Components\TextEntry::make('status')->badge()
+                            ->color(fn (string $state): string => match ($state) {
+                                'draft' => 'gray',
+                                'submitted' => 'warning',
+                                'validated' => 'success',
+                                'revision' => 'danger',
+                                default => 'gray',
+                            }),
+                    ])->columns(4),
+
+                \Filament\Infolists\Components\Section::make('Audit Trail & Verification Timeline')
+                    ->description('Complete lifecycle of this record')
+                    ->icon('heroicon-o-clock')
+                    ->schema([
+                        \Filament\Infolists\Components\ViewEntry::make('audit_timeline')
+                            ->hiddenLabel()
+                            ->view('filament.infolists.audit-timeline')
+                    ])->columnSpanFull(),
+            ]);
     }
 
     public static function getEloquentQuery(): Builder

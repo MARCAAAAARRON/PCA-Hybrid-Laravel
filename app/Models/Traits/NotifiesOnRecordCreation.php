@@ -17,13 +17,25 @@ trait NotifiesOnRecordCreation
 
             $siteId = $model->field_site_id;
             
-            // Targeted recipients: Global Admins and the specific site's Manager
+            // Targeted recipients: Global Admins, Superadmins, and site-specific or global Managers
             $users = User::whereIn('role', ['admin', 'superadmin'])
                 ->orWhere(function ($query) use ($siteId) {
                     $query->where('role', 'manager')
-                          ->where('field_site_id', $siteId);
+                          ->where(function ($q) use ($siteId) {
+                              if ($siteId) {
+                                  $q->where('field_site_id', $siteId)
+                                    ->orWhereNull('field_site_id');
+                              } else {
+                                  $q->whereNull('field_site_id');
+                              }
+                          });
                 })
                 ->get();
+
+            // Reject the acting authenticated user to avoid self-notification spam
+            if ($creatorUser = auth()->user()) {
+                $users = $users->reject(fn($user) => $user->id === $creatorUser->id);
+            }
 
             $creator = auth()->user()?->name ?? 'System';
             $modelName = class_basename($model);

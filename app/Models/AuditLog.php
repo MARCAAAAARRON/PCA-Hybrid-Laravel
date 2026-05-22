@@ -18,6 +18,7 @@ class AuditLog extends Model
 
     public const ACTION_CHOICES = [
         'login' => 'Login',
+        'login_failed' => 'Failed Login Attempt',
         'logout' => 'Logout',
         'create' => 'Create',
         'update' => 'Update',

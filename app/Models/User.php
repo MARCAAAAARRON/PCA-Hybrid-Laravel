@@ -17,11 +17,12 @@ use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class User extends Authenticatable implements FilamentUser, HasAvatar, MustVerifyEmail
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable, HasRoles, TwoFactorAuthenticatable, HasApiTokens;
+    use HasFactory, Notifiable, HasRoles, TwoFactorAuthenticatable, HasApiTokens, SoftDeletes;
 
     public const ROLE_CHOICES = [
         'supervisor' => 'COS / Agriculturist',

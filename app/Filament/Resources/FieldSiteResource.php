@@ -36,6 +36,7 @@ class FieldSiteResource extends Resource implements HasShieldPermissions
         return $form
             ->schema([
                 Forms\Components\Section::make('Field Site Details')
+                    ->icon('heroicon-o-building-office')
                     ->schema([
                         Forms\Components\TextInput::make('name')
                             ->required()
@@ -44,6 +45,71 @@ class FieldSiteResource extends Resource implements HasShieldPermissions
                         Forms\Components\Textarea::make('description')
                             ->rows(3)
                             ->columnSpanFull(),
+                    ])->columns(1),
+
+                Forms\Components\Section::make('Report Signatories')
+                    ->description('Configure default signatory names, titles, and labels displayed on generated Excel and PDF reports for this site.')
+                    ->icon('heroicon-o-pencil-square')
+                    ->schema([
+                        Forms\Components\Grid::make(3)
+                            ->schema([
+                                // Prepared By
+                                Forms\Components\Fieldset::make('Prepared By (e.g. Supervisor)')
+                                    ->schema([
+                                        Forms\Components\TextInput::make('prepared_by_label')
+                                            ->label('Label')
+                                            ->default('Prepared by:')
+                                            ->required()
+                                            ->maxLength(50),
+                                        Forms\Components\TextInput::make('prepared_by_name')
+                                            ->label('Full Name')
+                                            ->placeholder('e.g. Juan Dela Cruz')
+                                            ->maxLength(255),
+                                        Forms\Components\TextInput::make('prepared_by_title')
+                                            ->label('Title/Designation')
+                                            ->default('COS / Agriculturist')
+                                            ->placeholder('e.g. COS / Agriculturist')
+                                            ->maxLength(255),
+                                    ])->columns(1),
+
+                                // Reviewed By
+                                Forms\Components\Fieldset::make('Reviewed By (e.g. Manager)')
+                                    ->schema([
+                                        Forms\Components\TextInput::make('reviewed_by_label')
+                                            ->label('Label')
+                                            ->default('Reviewed by:')
+                                            ->required()
+                                            ->maxLength(50),
+                                        Forms\Components\TextInput::make('reviewed_by_name')
+                                            ->label('Full Name')
+                                            ->placeholder('e.g. Maria Santos')
+                                            ->maxLength(255),
+                                        Forms\Components\TextInput::make('reviewed_by_title')
+                                            ->label('Title/Designation')
+                                            ->default('Senior Agriculturist')
+                                            ->placeholder('e.g. Senior Agriculturist')
+                                            ->maxLength(255),
+                                    ])->columns(1),
+
+                                // Noted By
+                                Forms\Components\Fieldset::make('Noted By (e.g. Division Chief)')
+                                    ->schema([
+                                        Forms\Components\TextInput::make('noted_by_label')
+                                            ->label('Label')
+                                            ->default('Noted by:')
+                                            ->required()
+                                            ->maxLength(50),
+                                        Forms\Components\TextInput::make('noted_by_name')
+                                            ->label('Full Name')
+                                            ->placeholder('e.g. Engr. Pedro Penduko')
+                                            ->maxLength(255),
+                                        Forms\Components\TextInput::make('noted_by_title')
+                                            ->label('Title/Designation')
+                                            ->default('PCDM / Division Chief I')
+                                            ->placeholder('e.g. PCDM / Division Chief I')
+                                            ->maxLength(255),
+                                    ])->columns(1),
+                            ]),
                     ]),
             ]);
     }
@@ -66,6 +132,9 @@ class FieldSiteResource extends Resource implements HasShieldPermissions
                     ->dateTime()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
+            ])
+            ->filters([
+                Tables\Filters\TrashedFilter::make(),
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),
@@ -104,11 +173,23 @@ class FieldSiteResource extends Resource implements HasShieldPermissions
                     ->modalCancelActionLabel('Close'),
 
                 Tables\Actions\DeleteAction::make(),
+                Tables\Actions\RestoreAction::make(),
+                Tables\Actions\ForceDeleteAction::make(),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\RestoreBulkAction::make(),
+                    Tables\Actions\ForceDeleteBulkAction::make(),
                 ]),
+            ]);
+    }
+
+    public static function getEloquentQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        return parent::getEloquentQuery()
+            ->withoutGlobalScopes([
+                \Illuminate\Database\Eloquent\SoftDeletingScope::class,
             ]);
     }
 

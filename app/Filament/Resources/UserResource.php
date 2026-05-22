@@ -23,6 +23,9 @@ use Filament\Tables\Actions\ExportBulkAction;
 use App\Filament\Resources\UserResource\Pages;
 use STS\FilamentImpersonate\Tables\Actions\Impersonate;
 use Filament\Infolists\Components\Section as InfolistSection;
+use Illuminate\Validation\Rules\Password;
+use Filament\Notifications\Notification;
+use Illuminate\Database\Eloquent\Collection;
 
 class UserResource extends Resource
 {
@@ -48,11 +51,15 @@ class UserResource extends Resource
                     TextInput::make('password')
                         ->password()
                         ->required(fn($livewire) => $livewire instanceof Pages\CreateUser)
-                        ->dehydrated(fn($state) => filled($state)),
+                        ->dehydrated(fn($state) => filled($state))
+                        ->rule(Password::min(8)->mixedCase()->numbers()->symbols()->uncompromised())
+                        ->revealable()
+                        ->helperText('Must be at least 8 characters long and contain uppercase, lowercase, numbers, and symbols.'),
                     Select::make('role')
                         ->options(User::ROLE_CHOICES)
                         ->required()
-                        ->native(false),
+                        ->native(false)
+                        ->disabled(fn (?User $record): bool => $record !== null && $record->id === auth()->id()),
                     Select::make('field_site_id')
                         ->relationship('fieldSite', 'name')
                         ->label('Assigned Field Site')
@@ -118,7 +125,7 @@ class UserResource extends Resource
                 ]),
             ])
             ->filters([
-                //
+                Tables\Filters\TrashedFilter::make(),
                 SelectFilter::make('roles')
                     ->relationship('roles', 'name')
                     ->multiple()
@@ -138,9 +145,14 @@ class UserResource extends Resource
                             ->preload()
                             ->optionsLimit(10)
                             ->getOptionLabelFromRecordUsing(fn($record) => $record->name),
-                    ]),
+                    ])
+                    ->disabled(fn (User $record): bool => $record->id === auth()->id()),
                 // Impersonate::make(),
-                Tables\Actions\DeleteAction::make(),
+                Tables\Actions\DeleteAction::make()
+                    ->disabled(fn (User $record): bool => $record->id === auth()->id()),
+                Tables\Actions\RestoreAction::make(),
+                Tables\Actions\ForceDeleteAction::make()
+                    ->disabled(fn (User $record): bool => $record->id === auth()->id()),
             ])
             ->headerActions([
                 ExportAction::make()
@@ -150,7 +162,29 @@ class UserResource extends Resource
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\DeleteBulkAction::make()
+                        ->before(fn (Tables\Actions\DeleteBulkAction $action) => $action->getRecords()->each(function (User $record) use ($action) {
+                            if ($record->id === auth()->id()) {
+                                Notification::make()
+                                    ->danger()
+                                    ->title('Self-deletion is blocked.')
+                                    ->body('You cannot delete your own account.')
+                                    ->send();
+                                $action->halt();
+                            }
+                        })),
+                    Tables\Actions\RestoreBulkAction::make(),
+                    Tables\Actions\ForceDeleteBulkAction::make()
+                        ->before(fn (Tables\Actions\ForceDeleteBulkAction $action) => $action->getRecords()->each(function (User $record) use ($action) {
+                            if ($record->id === auth()->id()) {
+                                Notification::make()
+                                    ->danger()
+                                    ->title('Self-deletion is blocked.')
+                                    ->body('You cannot permanently delete your own account.')
+                                    ->send();
+                                $action->halt();
+                            }
+                        })),
                 ]),
                 ExportBulkAction::make()
                     ->exporter(UserExporter::class)
@@ -162,6 +196,14 @@ class UserResource extends Resource
         return [
             //
         ];
+    }
+
+    public static function getEloquentQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        return parent::getEloquentQuery()
+            ->withoutGlobalScopes([
+                \Illuminate\Database\Eloquent\SoftDeletingScope::class,
+            ]);
     }
 
     public static function getPages(): array

@@ -36,7 +36,7 @@ Route::get('/', function () {
 // Quick-add: scanned QR redirects to Create Monthly Harvest with site pre-filled
 Route::get('/site/{fieldSite}/quick-add', function (FieldSite $fieldSite) {
     return redirect()->to(
-        '/admin/monthly-harvests/create?field_site_id=' . $fieldSite->id
+        '/portal/monthly-harvests/create?field_site_id=' . $fieldSite->id
     );
 })->middleware(['auth'])->name('site.quick-add');
 
@@ -48,3 +48,13 @@ Route::get('/site/{fieldSite}/qr', function (FieldSite $fieldSite) {
         'qrUrl' => $quickAddUrl,
     ]);
 })->middleware(['auth'])->name('site.qr');
+
+// Legacy redirect to prevent broken bookmarks
+Route::any('/admin/{any?}', function ($any = null) {
+    $query = request()->getQueryString();
+    $target = '/portal' . ($any ? '/' . $any : '');
+    if ($query) {
+        $target .= '?' . $query;
+    }
+    return redirect()->to($target, 301);
+})->where('any', '.*');

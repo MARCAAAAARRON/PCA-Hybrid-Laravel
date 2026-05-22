@@ -26,7 +26,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        // Register Auth event subscriber
+        Event::subscribe(\App\Listeners\AuthEventSubscriber::class);
+
         Gate::define('viewApiDocs', function (User $user) {
             return true;
         });

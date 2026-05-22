@@ -264,12 +264,6 @@ class PollenProductionResource extends Resource implements HasShieldPermissions
                 //     ->query(function (Builder $query, array $data) {
                 //         if (empty($data['value'])) return $query;
                 //         return match ($data['value']) {
-                //             'fresh' => $query->fresh(),
-                //             'at_risk' => $query->atRisk(),
-                //             'expired' => $query->expired(),
-                //             default => $query,
-                //         };
-                //     }),
                 Tables\Filters\Filter::make('report_year')
                     ->form([
                         Forms\Components\Select::make('year')
@@ -286,6 +280,7 @@ class PollenProductionResource extends Resource implements HasShieldPermissions
             ])
             ->defaultSort('report_month', 'desc')
             ->actions([
+                Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make()
                     ->visible(fn (Model $record) => $record->isDraft() && auth()->user()?->isSupervisor()),
                 Tables\Actions\DeleteAction::make()
@@ -301,6 +296,37 @@ class PollenProductionResource extends Resource implements HasShieldPermissions
                 ]),
             ])
             ;
+    }
+
+    public static function infolist(\Filament\Infolists\Infolist $infolist): \Filament\Infolists\Infolist
+    {
+        return $infolist
+            ->schema([
+                \Filament\Infolists\Components\Section::make('General Information')
+                    ->schema([
+                        \Filament\Infolists\Components\TextEntry::make('fieldSite.name')->label('Field Site'),
+                        \Filament\Infolists\Components\TextEntry::make('report_month')->date('F Y')->label('Report Month'),
+                        \Filament\Infolists\Components\TextEntry::make('pollen_variety')->label('Pollen Variety'),
+                        \Filament\Infolists\Components\TextEntry::make('ending_balance')->label('Ending Balance (g)')->weight('bold'),
+                        \Filament\Infolists\Components\TextEntry::make('status')->badge()
+                            ->color(fn (string $state): string => match ($state) {
+                                'draft' => 'gray',
+                                'submitted' => 'warning',
+                                'validated' => 'success',
+                                'revision' => 'danger',
+                                default => 'gray',
+                            }),
+                    ])->columns(5),
+
+                \Filament\Infolists\Components\Section::make('Audit Trail & Verification Timeline')
+                    ->description('Complete lifecycle of this record')
+                    ->icon('heroicon-o-clock')
+                    ->schema([
+                        \Filament\Infolists\Components\ViewEntry::make('audit_timeline')
+                            ->hiddenLabel()
+                            ->view('filament.infolists.audit-timeline')
+                    ])->columnSpanFull(),
+            ]);
     }
 
     public static function getEloquentQuery(): Builder

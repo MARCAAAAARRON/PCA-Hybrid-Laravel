@@ -24,7 +24,7 @@ class Login extends BaseLogin
     public function authenticate(): ?LoginResponse
     {
         try {
-            $this->rateLimit(5);
+            $this->rateLimit(3);
         } catch (TooManyRequestsException $exception) {
             $this->getRateLimitedNotification($exception)?->send();
 
@@ -42,6 +42,18 @@ class Login extends BaseLogin
         }
 
         if (! Filament::auth()->attempt($this->getCredentialsFromFormData($data), $data['remember'] ?? false)) {
+            \App\Models\AuditLog::create([
+                'user_id' => $user?->id ?? null,
+                'action' => 'login_failed',
+                'model_name' => \App\Models\User::class,
+                'object_id' => $user?->id ?? null,
+                'details' => [
+                    'email' => $data['email'],
+                    'msg' => 'Failed login attempt.',
+                ],
+                'ip_address' => request()->ip(),
+            ]);
+
             $this->throwFailureValidationException();
         }
 
@@ -66,9 +78,9 @@ class Login extends BaseLogin
         parent::mount();
 
         $this->form->fill([
-            'email' => 'admin@admin.com',
-            'password' => 'password',
-            'remember' => true,
+            'email' => '',
+            'password' => '',
+            'remember' => false,
         ]);
     }
     /**
@@ -92,8 +104,7 @@ class Login extends BaseLogin
     protected function getEmailFormComponent(): Component
     {
         return parent::getEmailFormComponent()
-            ->label('Email address')
-            ->placeholder('admin@admin.com');
+            ->label('Email address');
     }
 
     protected function getPasswordFormComponent(): Component

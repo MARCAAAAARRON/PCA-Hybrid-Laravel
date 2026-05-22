@@ -1423,7 +1423,7 @@
             <a href="#how-it-works">How It Works</a>
             <a href="#about">About</a>
             <a href="#our-team">Our Team</a>
-            <a href="/admin/login" class="btn-nav">Login</a>
+            <a href="/portal/login" class="btn-nav">Login</a>
         </div>
 
         <!-- Mobile hamburger -->
@@ -1436,7 +1436,7 @@
             <a href="#how-it-works">How It Works</a>
             <a href="#about">About</a>
             <a href="#our-team">Our Team</a>
-            <a href="/admin/login" class="btn-nav">Login / Register</a>
+            <a href="/portal/login" class="btn-nav">Login / Register</a>
         </div>
     </nav>
 
@@ -1480,7 +1480,7 @@
                 allfield sites.</p>
             <div class="hero-cta">
                 <a href="#features" class="btn-primary">View System Scope ↓</a>
-                <a href="/admin/login" class="btn-ghost">Access Portal</a>
+                <a href="/portal/login" class="btn-ghost">Access Portal</a>
             </div>
         </div>
 
@@ -1852,7 +1852,7 @@
             <p class="reveal">Register now and become part of Bohol's coconut hybridization initiative. Free for all
                 enrolled farmers and field officers.</p>
             <div class="reveal">
-                <a href="/admin/login" class="btn-primary" style="font-size:1.05rem;padding:1rem 2.75rem">Login /
+                <a href="/portal/login" class="btn-primary" style="font-size:1.05rem;padding:1rem 2.75rem">Login /
                     Register →</a>
             </div>
             <div class="cta-contact-cards">
@@ -1900,7 +1900,7 @@
                         <li><a href="#about">About Us</a></li>
                         <li><a href="#features">Features</a></li>
                         <li><a href="#how-it-works">How It Works</a></li>
-                        <li><a href="/admin/login">Login</a></li>
+                        <li><a href="/portal/login">Login</a></li>
                     </ul>
                 </div>
 

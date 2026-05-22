@@ -113,6 +113,15 @@ class HybridizationRecordResource extends Resource implements HasShieldPermissio
                             ->hiddenLabel()
                             ->columnSpanFull(),
                     ]),
+
+                \Filament\Infolists\Components\Section::make('Audit Trail & Verification Timeline')
+                    ->icon('heroicon-o-clock')
+                    ->collapsible()
+                    ->schema([
+                        \Filament\Infolists\Components\ViewEntry::make('audit_timeline')
+                            ->view('filament.infolists.audit-timeline')
+                            ->columnSpanFull()
+                    ]),
             ]);
     }
 
