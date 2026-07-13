@@ -17,10 +17,15 @@ class DatabaseSeeder extends Seeder
         // 1. Create Field Sites
         $this->call(FieldSiteSeeder::class);
 
+        // 2. Create Roles & Permissions FIRST
+        // Must run before any User is created, since the User model's
+        // saved() hook automatically calls syncRoles($user->role).
+        $this->call(RolePermissionSeeder::class);
+
         $loay = FieldSite::where('name', 'Loay Farm')->first();
         $balilihan = FieldSite::where('name', 'Balilihan Farm')->first();
 
-        // 2. Create Admin (PCDM / Division Chief I)
+        // 3. Create Admin (PCDM / Division Chief I)
         $admin = User::firstOrCreate(
             ['email' => 'admin@pca.gov.ph'],
             [
@@ -32,7 +37,7 @@ class DatabaseSeeder extends Seeder
             ]
         );
 
-        // 3. Create Manager (Senior Agriculturist)
+        // 4. Create Manager (Senior Agriculturist)
         $manager = User::firstOrCreate(
             ['email' => 'manager@pca.gov.ph'],
             [
@@ -44,7 +49,7 @@ class DatabaseSeeder extends Seeder
             ]
         );
 
-        // 4. Create Supervisors
+        // 5. Create Supervisors
         $loaySupervisor = User::firstOrCreate(
             ['email' => 'loay@pca.gov.ph'],
             [
@@ -67,7 +72,7 @@ class DatabaseSeeder extends Seeder
             ]
         );
 
-        // 5. Create Superadmin (System Administrator)
+        // 6. Create Superadmin (System Administrator)
         $superadmin = User::firstOrCreate(
             ['email' => 'superadmin@pca.gov.ph'],
             [
@@ -78,8 +83,5 @@ class DatabaseSeeder extends Seeder
                 'email_verified_at' => now(),
             ]
         );
-
-        // 6. Seed Permissions and assign Roles
-        $this->call(RolePermissionSeeder::class);
     }
 }

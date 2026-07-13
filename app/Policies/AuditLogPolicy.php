@@ -15,7 +15,7 @@ class AuditLogPolicy
      */
     public function viewAny(User $user): bool
     {
-        return in_array($user->role, ['manager', 'admin', 'superadmin']);
+        return $user->can('view_any_audit::log');
     }
 
     /**
@@ -23,7 +23,7 @@ class AuditLogPolicy
      */
     public function view(User $user, AuditLog $auditLog): bool
     {
-        return in_array($user->role, ['manager', 'admin', 'superadmin']);
+        return $user->can('view_audit::log');
     }
 
     /**
@@ -31,7 +31,7 @@ class AuditLogPolicy
      */
     public function create(User $user): bool
     {
-        return $user->can('{{ Create }}');
+        return $user->can('create_audit::log');
     }
 
     /**
@@ -39,7 +39,7 @@ class AuditLogPolicy
      */
     public function update(User $user, AuditLog $auditLog): bool
     {
-        return $user->can('{{ Update }}');
+        return $user->can('update_audit::log');
     }
 
     /**
@@ -47,7 +47,7 @@ class AuditLogPolicy
      */
     public function delete(User $user, AuditLog $auditLog): bool
     {
-        return $user->can('{{ Delete }}');
+        return $user->can('delete_audit::log');
     }
 
     /**
@@ -55,7 +55,7 @@ class AuditLogPolicy
      */
     public function deleteAny(User $user): bool
     {
-        return $user->can('{{ DeleteAny }}');
+        return $user->can('delete_any_audit::log');
     }
 
     /**
@@ -63,7 +63,7 @@ class AuditLogPolicy
      */
     public function forceDelete(User $user, AuditLog $auditLog): bool
     {
-        return $user->can('{{ ForceDelete }}');
+        return $user->can('force_delete_audit::log');
     }
 
     /**
@@ -71,7 +71,7 @@ class AuditLogPolicy
      */
     public function forceDeleteAny(User $user): bool
     {
-        return $user->can('{{ ForceDeleteAny }}');
+        return $user->can('force_delete_any_audit::log');
     }
 
     /**
@@ -79,7 +79,7 @@ class AuditLogPolicy
      */
     public function restore(User $user, AuditLog $auditLog): bool
     {
-        return $user->can('{{ Restore }}');
+        return $user->can('restore_audit::log');
     }
 
     /**
@@ -87,7 +87,7 @@ class AuditLogPolicy
      */
     public function restoreAny(User $user): bool
     {
-        return $user->can('{{ RestoreAny }}');
+        return $user->can('restore_any_audit::log');
     }
 
     /**
@@ -95,7 +95,7 @@ class AuditLogPolicy
      */
     public function replicate(User $user, AuditLog $auditLog): bool
     {
-        return $user->can('{{ Replicate }}');
+        return $user->can('replicate_audit::log');
     }
 
     /**
@@ -103,6 +103,6 @@ class AuditLogPolicy
      */
     public function reorder(User $user): bool
     {
-        return $user->can('{{ Reorder }}');
+        return $user->can('reorder_audit::log');
     }
 }

@@ -103,7 +103,7 @@ class HybridDistributionExport
             $drawing->setName('PCA Logo');
             $drawing->setPath($logoPath);
             $drawing->setHeight(75);
-            $drawing->setCoordinates('B1');
+            $drawing->setCoordinates('E1');
             $drawing->setWorksheet($sheet);
         }
 

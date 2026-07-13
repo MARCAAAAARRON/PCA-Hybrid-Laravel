@@ -26,11 +26,11 @@ class RolePermissionSeeder extends Seeder
         $managerRole->syncPermissions([]);
         $supervisorRole->syncPermissions([]);
 
-        // 2. Fetch all generated permissions
+        // 2. Superadmin gets EVERYTHING unconditionally
         $allPermissions = Permission::all();
+        $superadminRole->syncPermissions($allPermissions);
 
         // 3. Define module groups
-        $superAdminOnlyModules = ['role', 'user', 'field::site']; // Superadmin only: roles, users, field sites
         $adminOnlyModules = ['audit::log']; // Admin: audit logs only
         $fieldDataModules = [
             'hybrid::distribution',
@@ -41,55 +41,64 @@ class RolePermissionSeeder extends Seeder
             'terminal',
         ];
 
-        // Also include pages/widgets that all roles should access
+        // Pages/widgets that all operational roles should access
         $sharedPermissions = [
             'page_MyProfilePage',
             'widget_StatsOverviewWidget',
             'widget_MonthlyProductionChart',
         ];
 
-        // 4. Assign permissions to roles
+        // 4. Assign permissions to admin/manager/supervisor
         foreach ($allPermissions as $permission) {
             $name = $permission->name;
 
-            // Check if this is a shared permission (pages/widgets)
+            // A. Shared pages/widgets - all operational roles
             if (in_array($name, $sharedPermissions)) {
-                $superadminRole->givePermissionTo($permission);
                 $adminRole->givePermissionTo($permission);
                 $managerRole->givePermissionTo($permission);
                 $supervisorRole->givePermissionTo($permission);
                 continue;
             }
 
-            // A. Superadmin Only (Roles, Users, Field Sites)
-            foreach ($superAdminOnlyModules as $module) {
-                if (str_ends_with($name, "_{$module}") || str_ends_with($name, "::{$module}")) {
-                    $superadminRole->givePermissionTo($permission);
-                }
-            }
-
-            // B. Admin Only (Audit Logs)
+            // B. Admin-only modules (audit logs)
             foreach ($adminOnlyModules as $module) {
                 if (str_ends_with($name, "_{$module}") || str_ends_with($name, "::{$module}")) {
                     $adminRole->givePermissionTo($permission);
                 }
             }
 
-            // C. Field Data Modules - Only operational roles (Admin, Manager, Supervisor)
+            // C. Field-data modules - admin, manager, supervisor all get
+            // the full permission set. Ownership/status restrictions
+            // (draft-only editing, field-site or created_by scoping)
+            // are enforced in the model Policies, not here.
             foreach ($fieldDataModules as $module) {
                 if (str_ends_with($name, "_{$module}") || str_ends_with($name, "::{$module}")) {
-                    $adminRole->givePermissionTo($permission); // Division Chief sees all
+                    $adminRole->givePermissionTo($permission);
                     $managerRole->givePermissionTo($permission);
+                    $supervisorRole->givePermissionTo($permission);
+                }
+            }
+
+            // D. Reports - manager/admin view-only, supervisor full CRUD
+            // (supervisor ownership enforced in ReportPolicy via generated_by)
+            if (str_ends_with($name, '_report')) {
+                if (in_array($name, ['view_report', 'view_any_report'])) {
+                    $adminRole->givePermissionTo($permission);
+                    $managerRole->givePermissionTo($permission);
+                    $supervisorRole->givePermissionTo($permission);
+                } elseif (in_array($name, ['create_report', 'update_report', 'delete_report', 'delete_any_report'])) {
                     $supervisorRole->givePermissionTo($permission);
                 }
             }
         }
 
-        // 5. Assign roles to users based on their 'role' column
+        // 5. Assign roles to seeded users based on their 'role' column
+        // (Note: the User model's saved() hook also does this automatically
+        // on create/update, so this is mainly a safety net / re-sync.)
         $users = User::all();
         foreach ($users as $user) {
             if ($user->role) {
-                $user->assignRole($user->role);
+                $user->syncRoles([$user->role]);
             }
         }
     }

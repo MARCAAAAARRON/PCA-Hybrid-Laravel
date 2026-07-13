@@ -92,7 +92,7 @@
                  @keydown.right.window="$wire.nextPage()">
 
                 {{-- Modal Action Loading Overlay (Excel, Share, Navigation, Exit) --}}
-                <div wire:loading wire:target="exportExcelAction, shareAction, goToPage, switchCategory, generateReport, firstPage, lastPage, prevPage, nextPage, closeModal" class="absolute inset-0 z-[10002] flex flex-col items-center justify-center bg-white/60 dark:bg-gray-900/60 backdrop-blur-md">
+                <div wire:loading wire:target="exportExcelAction, exportPdfAction, shareAction, goToPage, switchCategory, generateReport, firstPage, lastPage, prevPage, nextPage, closeModal" class="absolute inset-0 z-[10002] flex flex-col items-center justify-center bg-white/60 dark:bg-gray-900/60 backdrop-blur-md">
                     <div class="flex flex-col items-center p-8 rounded-3xl bg-white dark:bg-gray-800 shadow-2xl border border-gray-100 dark:border-gray-700">
                         <x-filament::loading-indicator class="text-[#0b9e4f] mb-4" style="width: 54px; height: 54px;" />
                         <span class="text-lg font-bold text-[#0b9e4f] tracking-tight">Processing request...</span>
@@ -218,8 +218,10 @@
                             {{-- Action Buttons --}}
                             <div class="flex items-center gap-2 border-l border-gray-200 dark:border-gray-700 pl-3 shrink-0">
                                 <x-filament::button color="info" icon="heroicon-o-printer" onclick="printAllPages()" size="sm">
-                                    Print / PDF
+                                    Print
                                 </x-filament::button>
+
+                                {{ $this->exportPdfAction }}
 
                                 {{ $this->exportExcelAction }}
                                 {{ $this->shareAction }}
