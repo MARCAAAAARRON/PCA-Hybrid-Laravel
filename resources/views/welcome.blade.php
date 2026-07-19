@@ -139,6 +139,9 @@
 
         /* Mobile hamburger */
         .hamburger {
+            background: var(--yellow);
+            border: none;
+            border-radius: 2px;
             display: none;
             flex-direction: column;
             gap: 5px;
@@ -147,6 +150,7 @@
         }
 
         .hamburger span {
+            background: var(--green-900);
             display: block;
             width: 24px;
             height: 2px;
